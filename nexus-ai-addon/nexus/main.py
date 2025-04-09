@@ -1,5 +1,6 @@
 import os
 import logging
+from datetime import datetime
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -65,6 +66,10 @@ class MemoryRequest(BaseModel):
 data_dir = os.getenv("DATA_DIR", os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'data'))
 os.makedirs(os.path.join(data_dir, 'db'), exist_ok=True)
 os.makedirs(os.path.join(data_dir, 'chromadb'), exist_ok=True)
+
+# Initialize database service
+from nexus.database import DatabaseService
+db_service = DatabaseService()
 
 memory_manager = MemoryManager(
     db_path=os.path.join(data_dir, 'db', 'memory.db'),
@@ -288,10 +293,15 @@ async def configure_home_assistant(request: HAConfigRequest):
         connection_status = await ha_api.check_connection()
         
         if connection_status.get("connected", False):
-            # Save the configuration to memory for persistence
-            memory_manager.save_preference("ha_url", request.url)
-            # Don't save the token directly for security; use a hash or other mechanism if needed
-            memory_manager.save_preference("ha_configured", "true")
+            # Save the configuration to database
+            db_service.save_ha_config(request.url, request.token)
+            
+            # Update connection status with version and name if available
+            if "version" in connection_status:
+                db_service.update_ha_connection_status(
+                    version=connection_status.get("version"),
+                    location_name=connection_status.get("location_name")
+                )
             
             return {"status": "configured", "connection": connection_status}
         else:
@@ -304,13 +314,29 @@ async def configure_home_assistant(request: HAConfigRequest):
 async def check_home_assistant_status():
     """Check the status of the Home Assistant connection."""
     try:
+        # First check if we have saved configuration
+        ha_config = db_service.get_active_ha_config()
+        
+        if not ha_config:
+            return {
+                "configured": False,
+                "connection": {"connected": False, "error": "Not configured"},
+                "token": {"valid": False}
+            }
+        
+        # Test actual connection
         connection_status = await ha_api.check_connection()
         token_info = await ha_api.get_token_info()
         
-        configured = memory_manager.get_preference("ha_configured", "false") == "true"
+        # If connection successful, update the status
+        if connection_status.get("connected", False):
+            db_service.update_ha_connection_status(
+                version=connection_status.get("version"),
+                location_name=connection_status.get("location_name")
+            )
         
         return {
-            "configured": configured,
+            "configured": True,
             "connection": connection_status,
             "token": token_info
         }
@@ -371,12 +397,29 @@ async def toggle_automation(entity_id: str, enable: bool = True):
 async def create_automation(request: AutomationRequest):
     """Create a new automation in Home Assistant."""
     try:
+        # First try to create it in Home Assistant
         result = await automation_tool.create_routine(
             name=request.name,
             triggers=request.triggers,
             actions=request.actions,
             conditions=request.conditions
         )
+        
+        # Save to database regardless of HA result (it may be a suggestion that user will apply later)
+        automation_id = db_service.save_automation(
+            name=request.name,
+            triggers=request.triggers,
+            actions=request.actions,
+            conditions=request.conditions,
+            entity_id=result.get("entity_id") if result.get("success") else None,
+            description=f"Automation created via Nexus AI on {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}",
+            is_suggested=False,
+            confidence=1.0  # User-created automations have full confidence
+        )
+        
+        if automation_id:
+            result["automation_id"] = automation_id
+            
         return result
     except Exception as e:
         logger.error(f"Error creating automation: {e}")
@@ -386,8 +429,53 @@ async def create_automation(request: AutomationRequest):
 async def get_automation_suggestions():
     """Get AI-generated automation suggestions based on patterns."""
     try:
-        suggestions = await automation_tool.suggest_automations(memory_manager)
-        return {"suggestions": suggestions}
+        # Get suggestions from automation tool
+        ha_suggestions = await automation_tool.suggest_automations(memory_manager)
+        
+        # Get patterns from database
+        patterns = db_service.get_patterns(min_confidence=0.6)
+        
+        # For each pattern, create an automation suggestion if it doesn't already exist
+        db_suggestions = []
+        for pattern in patterns:
+            # Convert pattern to automation suggestion
+            suggestion = {
+                "name": pattern["name"],
+                "description": f"Based on pattern detected {pattern['times_detected']} times",
+                "entity_id": pattern["entities"][0] if pattern["entities"] else None,
+                "confidence": pattern["confidence"],
+                "type": pattern["pattern_type"]
+            }
+            
+            # Add different properties based on pattern type
+            if pattern["pattern_type"] == "time_based":
+                suggestion["triggers"] = [{"platform": "time", "at": pattern["data"]["time"]}]
+                suggestion["actions"] = [{"service": pattern["data"]["service"], "target": {"entity_id": pattern["entities"]}}]
+            elif pattern["pattern_type"] == "presence":
+                suggestion["triggers"] = [{"platform": "state", "entity_id": pattern["data"]["sensor"], "to": "on"}]
+                suggestion["actions"] = [{"service": pattern["data"]["service"], "target": {"entity_id": pattern["entities"]}}]
+            
+            db_suggestions.append(suggestion)
+            
+        # Combine suggestions
+        all_suggestions = ha_suggestions + db_suggestions
+        
+        # Save any new suggestions to the database
+        for suggestion in ha_suggestions:
+            # Check if this is a proper suggestion with triggers and actions
+            if "triggers" in suggestion and "actions" in suggestion:
+                # Save as a suggested automation
+                db_service.save_automation(
+                    name=suggestion.get("name", suggestion.get("description", "Unnamed suggestion")),
+                    triggers=suggestion.get("triggers", []),
+                    actions=suggestion.get("actions", []),
+                    conditions=suggestion.get("conditions", []),
+                    description=suggestion.get("description", ""),
+                    is_suggested=True,
+                    confidence=suggestion.get("confidence", 0.5)
+                )
+        
+        return {"suggestions": all_suggestions}
     except Exception as e:
         logger.error(f"Error generating automation suggestions: {e}")
         raise HTTPException(status_code=500, detail=str(e))
