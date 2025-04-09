@@ -1,60 +1,31 @@
-# Nexus AI for Home Assistant
+# Nexus AI Add-on for Home Assistant
 
-Nexus AI is an intelligent AI assistant add-on for Home Assistant with memory, pattern recognition, and smart automation capabilities.
+![Nexus AI Logo](logo.png)
+
+## Description
+
+Nexus AI is an intelligent AI assistant for Home Assistant that enhances your smart home with advanced pattern recognition and automation capabilities. It uses artificial intelligence to learn from your habits and preferences, suggest automations, and provide natural language interaction with your smart home.
 
 ## Features
 
-- 🤖 **AI-Powered Assistant**: Natural language interaction with your smart home using OpenAI's GPT models
-- 🧠 **Memory System**: Remembers preferences and past interactions to provide personalized responses
-- 📊 **Pattern Recognition**: Identifies usage patterns and suggests automations based on your behavior
-- 🔄 **Automation Creation**: Generates and deploys Home Assistant automations with a single click
-- 📅 **Calendar Integration**: Optional Google Calendar integration to be aware of your schedule
-- 🌐 **Modern Web Interface**: Clean, responsive UI for interacting with the assistant
+- 🤖 **Natural Language Interface**: Control your smart home by chatting with Nexus AI using everyday language
+- 🧠 **Self-learning AI**: Nexus AI learns your habits and preferences over time
+- 🔍 **Pattern Recognition**: Automatically detects patterns in your smart home usage
+- ⚡ **Automation Suggestions**: Creates and suggests automations based on your habits
+- 📅 **Calendar Integration**: Connects with Google Calendar for context-aware assistance
+- 🔒 **Secure Integration**: Utilizes Home Assistant long-lived access tokens for secure API access
+- 💾 **Memory Management**: Remembers important information and preferences with forgetting curves
 
 ## Installation
 
-See [INSTALLATION.md](INSTALLATION.md) for detailed installation instructions.
+Please follow the installation instructions in the [DOCS.md](DOCS.md) file.
 
-For HACS users, see [HACS_INSTALLATION.md](HACS_INSTALLATION.md).
+## Screenshots
 
-## Configuration
-
-After installation, you'll need to configure the add-on:
-
-1. **OpenAI API Key**: You'll need an API key from OpenAI to use the AI capabilities
-2. **Voice Processing**: Enable/disable voice commands and responses
-3. **Google Calendar**: Enable/disable Google Calendar integration
-
-## Usage
-
-After starting the add-on:
-
-1. Access the web interface via the "OPEN WEB UI" button in the add-on page
-2. Connect to your Home Assistant instance when prompted
-3. Start interacting with the assistant by typing or speaking
-4. View and manage suggested automations in the Automations tab
-5. Access settings and preferences in the Settings tab
-
-## FAQ
-
-**Q: Does this require an OpenAI API key?**  
-A: Yes, Nexus AI uses OpenAI's GPT models to provide intelligent responses and analyze patterns. You'll need to provide your own API key in the add-on configuration.
-
-**Q: Can it work offline without internet?**  
-A: Currently, Nexus AI requires internet access for the OpenAI API. We're exploring options for local LLM support in future versions.
-
-**Q: Will this consume a lot of API tokens?**  
-A: Nexus AI is designed to be efficient with API usage. The amount of tokens used will depend on how frequently you interact with it and how complex your requests are.
-
-## Contributing
-
-Contributions are welcome! Feel free to submit issues or pull requests.
+![Nexus AI Chat Interface](screenshots/chat.png)
+![Automation Suggestions](screenshots/automations.png)
+![Settings Page](screenshots/settings.png)
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgements
-
-- Home Assistant team for creating an amazing smart home platform
-- OpenAI for providing the AI models that power this assistant
+This project is licensed under the MIT License - see the LICENSE file for details.

@@ -1,0 +1,8 @@
+#!/usr/bin/with-contenv bashio
+# ==============================================================================
+# Start Nexus AI service
+# ==============================================================================
+bashio::log.info "Starting Nexus AI..."
+
+cd /app
+exec /app/run.sh

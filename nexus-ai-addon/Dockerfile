@@ -4,47 +4,36 @@ FROM $BUILD_FROM
 # Set shell
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# Install Python and dependencies
+# Setup base
 RUN apk add --no-cache \
-        python3 \
-        py3-pip \
-        py3-wheel \
-        py3-setuptools \
-        py3-numpy \
-        py3-scikit-learn \
-        py3-pandas \
-        postgresql-client \
-        postgresql-dev \
-        gcc \
-        g++ \
-        musl-dev \
-        jq \
-        curl
+    python3 \
+    py3-pip \
+    py3-psycopg2 \
+    py3-cryptography \
+    py3-aiohttp \
+    py3-numpy \
+    postgresql-client
 
-# Set working directory
+# Copy app
 WORKDIR /app
+COPY . /app
 
-# Copy requirements file
-COPY requirements.txt .
-
-# Install Python dependencies
+# Install requirements
 RUN pip3 install --no-cache-dir -r requirements.txt
 
-# Copy application files
-COPY nexus/ /app/nexus/
-COPY run.sh /
+# Create data directory
+RUN mkdir -p /data
 
-# Make executable
-RUN chmod a+x /run.sh
+# S6-Overlay setup
+RUN chmod +x run.sh
 
-# Set entrypoint
-ENTRYPOINT [ "/run.sh" ]
+# Copy root filesystem
+COPY rootfs /
 
-# Labels
-LABEL \
-    io.hass.name="Nexus AI" \
-    io.hass.description="Intelligent AI assistant with memory and smart home control" \
-    io.hass.arch="armhf|armv7|aarch64|amd64|i386" \
-    io.hass.type="addon" \
-    io.hass.version="${BUILD_VERSION}" \
-    maintainer="Your Name <your.email@example.com>"
+WORKDIR /app
+
+# Set environment variables
+ENV PYTHONPATH="${PYTHONPATH}:/app"
+ENV DATA_DIR="/data"
+
+CMD [ "./run.sh" ]
