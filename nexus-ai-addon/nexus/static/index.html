@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus AI</title>
+    <link href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.css" rel="stylesheet">
+    <link href="/static/style.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+</head>
+<body data-bs-theme="dark">
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 col-lg-2 d-md-block bg-dark sidebar collapse">
+                <div class="position-sticky pt-3">
+                    <h5 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+                        <span>Nexus AI</span>
+                    </h5>
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="#chat-tab" data-bs-toggle="tab">
+                                <i data-feather="message-square"></i> Chat
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#calendar-tab" data-bs-toggle="tab">
+                                <i data-feather="calendar"></i> Calendar
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#memory-tab" data-bs-toggle="tab">
+                                <i data-feather="database"></i> Memory
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#settings-tab" data-bs-toggle="tab">
+                                <i data-feather="settings"></i> Settings
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Main content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <div class="tab-content" id="main-content">
+                    <!-- Chat Tab -->
+                    <div class="tab-pane fade show active" id="chat-tab">
+                        <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                            <h1 class="h2">Chat with Nexus</h1>
+                        </div>
+                        
+                        <div class="chat-container mb-3" id="chat-messages">
+                            <!-- Messages will be added here -->
+                            <div class="message system-message">
+                                <div class="message-content">
+                                    <p>Hello! I'm Nexus AI, your Home Assistant companion. How can I help you today?</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="input-group mb-3">
+                            <input type="text" id="message-input" class="form-control" placeholder="Type your message...">
+                            <button class="btn btn-primary" type="button" id="send-button">
+                                <i data-feather="send"></i>
+                            </button>
+                            <button class="btn btn-outline-secondary" type="button" id="mic-button" title="Voice input">
+                                <i data-feather="mic"></i>
+                            </button>
+                        </div>
+                        
+                        <div class="recording-indicator d-none" id="recording-indicator">
+                            <div class="spinner-grow text-danger" role="status">
+                                <span class="visually-hidden">Recording...</span>
+                            </div>
+                            <span>Recording... Click to stop</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Calendar Tab -->
+                    <div class="tab-pane fade" id="calendar-tab">
+                        <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                            <h1 class="h2">Calendar</h1>
+                        </div>
+                        
+                        <div class="calendar-status" id="calendar-status">
+                            <!-- Status will be shown here -->
+                        </div>
+                        
+                        <div class="calendar-auth d-none" id="calendar-auth">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">Google Calendar Authentication</h5>
+                                    <p class="card-text">Please complete the authentication process to connect to Google Calendar.</p>
+                                    <div class="mb-3">
+                                        <label for="auth-code" class="form-label">Enter the authorization code:</label>
+                                        <input type="text" class="form-control" id="auth-code">
+                                    </div>
+                                    <button class="btn btn-primary" id="auth-submit">Submit</button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="calendar-events" id="calendar-events">
+                            <h3>Today's Events</h3>
+                            <div class="list-group" id="events-list">
+                                <!-- Events will be added here -->
+                                <div class="list-group-item">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h5 class="mb-1">Loading events...</h5>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Memory Tab -->
+                    <div class="tab-pane fade" id="memory-tab">
+                        <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                            <h1 class="h2">Memory</h1>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="memory-search" placeholder="Search memory...">
+                                    <button class="btn btn-primary" type="button" id="memory-search-btn">
+                                        <i data-feather="search"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="memory-results" id="memory-results">
+                            <!-- Search results will be shown here -->
+                        </div>
+                        
+                        <div class="card mt-4">
+                            <div class="card-header">
+                                <h5>Add to Memory</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label for="memory-key" class="form-label">Key</label>
+                                    <input type="text" class="form-control" id="memory-key" placeholder="preference_name">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="memory-value" class="form-label">Value</label>
+                                    <textarea class="form-control" id="memory-value" rows="3" placeholder="Write something to remember..."></textarea>
+                                </div>
+                                <button class="btn btn-primary" id="memory-save-btn">Save</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Settings Tab -->
+                    <div class="tab-pane fade" id="settings-tab">
+                        <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                            <h1 class="h2">Settings</h1>
+                        </div>
+                        
+                        <div class="alert alert-info" role="alert">
+                            <i data-feather="info"></i>
+                            Settings are managed through the Home Assistant Add-on configuration.
+                        </div>
+                        
+                        <div class="card mb-3">
+                            <div class="card-header">
+                                <h5>Status</h5>
+                            </div>
+                            <div class="card-body">
+                                <table class="table">
+                                    <tbody>
+                                        <tr>
+                                            <th scope="row">Version</th>
+                                            <td id="version-info">0.1.0</td>
+                                        </tr>
+                                        <tr>
+                                            <th scope="row">OpenAI API</th>
+                                            <td id="openai-status">Checking...</td>
+                                        </tr>
+                                        <tr>
+                                            <th scope="row">Google Calendar</th>
+                                            <td id="calendar-status-info">Checking...</td>
+                                        </tr>
+                                        <tr>
+                                            <th scope="row">Voice Processing</th>
+                                            <td id="voice-status">Checking...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/script.js"></script>
+</body>
+</html>
