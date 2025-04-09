@@ -3,160 +3,227 @@ Memory manager for Nexus AI
 """
 import os
 import logging
-from typing import Dict, List, Any, Optional
 import json
-from datetime import datetime
-import chromadb
-from chromadb.config import Settings
+from typing import Dict, Any, List, Optional, Tuple
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("nexus.memory")
 
 class MemoryManager:
     """Manages storage and retrieval of memory with vector search capabilities."""
     
     def __init__(self, db_service, embedding_path: str = None):
         """Initialize the memory manager with SQLite and ChromaDB."""
-        self.db = db_service
+        self.db_service = db_service
         
-        # Initialize ChromaDB
-        self._init_chromadb(embedding_path)
+        # Default embedding path is in the data directory
+        if not embedding_path:
+            data_dir = os.environ.get("DATA_DIR", "/data/nexus")
+            embedding_path = os.path.join(data_dir, "embeddings")
+        
+        # Initialize ChromaDB for vector storage
+        self.embeddings_available = False
+        try:
+            self._init_chromadb(embedding_path)
+            self.embeddings_available = True
+        except Exception as e:
+            logger.warning(f"ChromaDB initialization failed: {e}. Vector search will be disabled.")
     
     def _init_chromadb(self, path: str = None):
         """Initialize ChromaDB for vector embeddings."""
-        if not path:
-            path = os.environ.get("DATA_DIR", ".") + "/chromadb"
-        
         try:
-            os.makedirs(path, exist_ok=True)
+            import chromadb
+            from chromadb.config import Settings
             
+            # Create directory if it doesn't exist
+            if path:
+                os.makedirs(path, exist_ok=True)
+            
+            # Initialize the client
             self.chroma_client = chromadb.PersistentClient(
                 path=path, 
                 settings=Settings(anonymized_telemetry=False)
             )
             
-            # Create or get collection for memories
-            self.memory_collection = self.chroma_client.get_or_create_collection(
+            # Create or get the collection
+            self.collection = self.chroma_client.get_or_create_collection(
                 name="memories",
-                metadata={"description": "User memories and preferences"}
+                metadata={"hnsw:space": "cosine"}
             )
             
             logger.info(f"ChromaDB initialized at {path}")
-        
+        except ImportError:
+            logger.warning("ChromaDB not installed. Vector search will be disabled.")
+            raise
         except Exception as e:
             logger.error(f"Error initializing ChromaDB: {e}")
-            # Fallback to dummy implementation if ChromaDB fails
-            self.chroma_client = None
-            self.memory_collection = None
+            raise
     
-    def save_memory(self, key: str, value: str) -> bool:
-        """Save a memory item to both SQLite and ChromaDB."""
+    def _generate_embedding(self, text: str) -> Optional[List[float]]:
+        """Generate embedding vector for text."""
+        if not self.embeddings_available:
+            return None
+            
         try:
-            # First save to database
-            embedding_id = None
+            import openai
             
-            # Then save to vector store if available
-            if self.memory_collection:
-                # Use key as the unique ID
-                embedding_id = key
-                
-                # Upsert to ChromaDB
-                self.memory_collection.upsert(
-                    ids=[embedding_id],
-                    documents=[value],
-                    metadatas=[{"key": key, "timestamp": datetime.utcnow().isoformat()}]
-                )
-            
-            # Save to database with embedding ID reference
-            success = self.db.save_memory(key, value, embedding_id)
-            return success
-        
+            response = openai.embeddings.create(
+                model="text-embedding-3-large",
+                input=text,
+                dimensions=1024
+            )
+            return response.data[0].embedding
+        except ImportError:
+            logger.warning("OpenAI module not available for embeddings")
+            return None
         except Exception as e:
-            logger.error(f"Error saving memory {key}: {e}")
-            return False
+            logger.error(f"Error generating embedding: {e}")
+            return None
+    
+    def save_memory(self, key: str, value: str, is_preference: bool = False) -> bool:
+        """Save a memory item to both SQLite and ChromaDB."""
+        # Generate embedding for vector search
+        embedding_id = None
+        if self.embeddings_available:
+            try:
+                embedding = self._generate_embedding(value)
+                if embedding:
+                    # Store in ChromaDB
+                    self.collection.upsert(
+                        ids=[key],
+                        embeddings=[embedding],
+                        metadatas=[{"key": key, "is_preference": is_preference}],
+                        documents=[value]
+                    )
+                    embedding_id = key
+                    logger.debug(f"Stored embedding for memory: {key}")
+            except Exception as e:
+                logger.error(f"Error storing embedding: {e}")
+        
+        # Store in SQLite database
+        return self.db_service.save_memory(key, value, embedding_id, is_preference)
     
     def recall(self, key: str) -> Optional[str]:
         """Recall a specific memory by key."""
-        memory = self.db.get_memory(key)
-        return memory["value"] if memory else None
+        memory = self.db_service.get_memory(key)
+        return memory.get("value") if memory else None
     
     def search(self, query: str, limit: int = 5) -> List[Dict[str, Any]]:
         """Search for memories semantically similar to the query."""
-        results = []
-        
-        if not self.memory_collection:
-            logger.warning("ChromaDB not available for semantic search")
-            # Fallback to basic keyword search in database
-            # TODO: Implement basic search
-            return results
+        if not self.embeddings_available:
+            logger.warning("Vector search not available")
+            # Fallback to basic keyword search in SQLite
+            memories = self.db_service.get_all_memories()
+            results = []
+            
+            # Simple string matching
+            query_lower = query.lower()
+            for memory in memories:
+                if query_lower in memory.get("key", "").lower() or query_lower in memory.get("value", "").lower():
+                    results.append({
+                        "key": memory.get("key"),
+                        "value": memory.get("value"),
+                        "score": 0.5  # Default score for text matching
+                    })
+            
+            # Sort by simple relevance and limit
+            results.sort(key=lambda x: x["score"], reverse=True)
+            return results[:limit]
         
         try:
-            # Query the vector store
-            chroma_results = self.memory_collection.query(
-                query_texts=[query],
+            # Generate embedding for the query
+            query_embedding = self._generate_embedding(query)
+            if not query_embedding:
+                logger.warning("Could not generate embedding for query")
+                return []
+            
+            # Search ChromaDB
+            results = self.collection.query(
+                query_embeddings=[query_embedding],
                 n_results=limit
             )
             
-            # Process results
-            if chroma_results and "metadatas" in chroma_results and chroma_results["metadatas"]:
-                for i, metadata in enumerate(chroma_results["metadatas"][0]):
-                    if metadata and "key" in metadata:
-                        key = metadata["key"]
-                        memory = self.db.get_memory(key)
-                        if memory:
-                            memory["relevance"] = float(chroma_results["distances"][0][i]) if "distances" in chroma_results else 0.0
-                            results.append(memory)
+            # Format results
+            formatted_results = []
+            for i, (doc_id, document, metadata, distance) in enumerate(zip(
+                results.get("ids", [[]])[0],
+                results.get("documents", [[]])[0],
+                results.get("metadatas", [[]])[0],
+                results.get("distances", [[]])[0]
+            )):
+                score = 1.0 - distance  # Convert distance to similarity score
+                formatted_results.append({
+                    "key": metadata.get("key", doc_id),
+                    "value": document,
+                    "score": score,
+                    "is_preference": metadata.get("is_preference", False)
+                })
             
-            return results
-        
+            return formatted_results
         except Exception as e:
             logger.error(f"Error searching memories: {e}")
             return []
     
     def save_preference(self, name: str, value: str) -> bool:
         """Save a user preference."""
-        return self.db.save_memory(f"preference:{name}", value, is_preference=True)
+        key = f"preference:{name}"
+        return self.save_memory(key, value, is_preference=True)
     
     def get_preference(self, name: str, default: Optional[str] = None) -> Optional[str]:
         """Get a user preference."""
-        memory = self.db.get_memory(f"preference:{name}")
-        return memory["value"] if memory else default
+        key = f"preference:{name}"
+        value = self.recall(key)
+        return value if value is not None else default
     
     def get_all_preferences(self) -> Dict[str, str]:
         """Get all user preferences."""
         preferences = {}
-        memories = self.db.get_all_memories(preferences_only=True)
+        memories = self.db_service.get_all_memories(preferences_only=True)
         
         for memory in memories:
-            if memory["key"].startswith("preference:"):
-                name = memory["key"].replace("preference:", "", 1)
-                preferences[name] = memory["value"]
+            key = memory.get("key", "")
+            if key.startswith("preference:"):
+                name = key[11:]  # Remove the "preference:" prefix
+                preferences[name] = memory.get("value")
         
         return preferences
     
-    def track_entity(self, entity_id: str, state: str, important: bool = False) -> bool:
-        """Track a Home Assistant entity state change."""
-        # Save as a memory with timestamp
-        timestamp = datetime.utcnow().isoformat()
-        return self.save_memory(
-            f"entity_state:{entity_id}:{timestamp}", 
-            json.dumps({"entity_id": entity_id, "state": state, "timestamp": timestamp})
+    def track_entity(self, entity_id: str, state: str, attributes: Dict[str, Any], important: bool = False) -> bool:
+        """Track a Home Assistant entity state change for pattern detection."""
+        # Extract domain
+        domain = entity_id.split('.')[0] if '.' in entity_id else ""
+        
+        # Extract friendly name
+        friendly_name = attributes.get("friendly_name", entity_id)
+        
+        # Save to database
+        return self.db_service.save_entity(
+            entity_id=entity_id,
+            friendly_name=friendly_name,
+            domain=domain,
+            state=state,
+            attributes=attributes,
+            is_important=important
         )
     
     def get_important_entities(self) -> List[Dict[str, Any]]:
         """Get all important entities and their states."""
-        return self.db.get_entities(important_only=True)
+        return self.db_service.get_entities(important_only=True)
     
     def clear_all(self) -> bool:
         """Clear all memory data (for testing/reset purposes)."""
-        try:
-            # Clear ChromaDB
-            if self.chroma_client:
-                self.chroma_client.delete_collection("memories")
-                self._init_chromadb()
-            
-            # TODO: Clear database memories
-            
-            return True
-        except Exception as e:
-            logger.error(f"Error clearing memories: {e}")
-            return False
+        # Clear ChromaDB
+        if self.embeddings_available:
+            try:
+                self.collection.delete()
+                logger.info("Cleared ChromaDB collection")
+            except Exception as e:
+                logger.error(f"Error clearing ChromaDB: {e}")
+                return False
+        
+        # Clear database memories
+        # Note: This would require implementing this method in the database service
+        # return self.db_service.clear_memories()
+        
+        # For now, we'll just log that we can't do this
+        logger.warning("Database memory clearing not implemented")
+        return False

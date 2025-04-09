@@ -1,38 +1,48 @@
-#!/usr/bin/with-contenv bashio
+#!/usr/bin/env bash
 
-# Get config
+# Exit script if a command returns a non-zero exit code
+set -e
+
+# Get options from add-on config
 CONFIG_PATH=/data/options.json
-LOG_LEVEL=$(bashio::config 'log_level')
-USE_LOCAL_LLM=$(bashio::config 'use_local_llm')
-LOCAL_LLM_URL=$(bashio::config 'local_llm_url')
-DATA_RETENTION_DAYS=$(bashio::config 'data_retention_days')
-
-# Set log level
-bashio::log.level "${LOG_LEVEL}"
-
-# Create required directories
-mkdir -p /data/nexus
+LOG_LEVEL=$(jq --raw-output '.log_level // "info"' $CONFIG_PATH)
+DATA_DIR=$(jq --raw-output '.data_directory // "/data/nexus"' $CONFIG_PATH)
+OPENAI_API_KEY=$(jq --raw-output '.openai_api_key // empty' $CONFIG_PATH)
+USE_LOCAL_MODEL=$(jq --raw-output '.use_local_model // false' $CONFIG_PATH)
+LOCAL_MODEL_PATH=$(jq --raw-output '.local_model_path // empty' $CONFIG_PATH)
+MEMORY_PERSISTENCE=$(jq --raw-output '.memory_persistence // true' $CONFIG_PATH)
 
 # Set environment variables
-export LOG_LEVEL="${LOG_LEVEL}"
-export DATA_DIR="/data/nexus"
-export DATABASE_URL="sqlite:////data/nexus/database.sqlite"
+export LOG_LEVEL="$LOG_LEVEL"
+export DATA_DIR="$DATA_DIR"
+export OPENAI_API_KEY="$OPENAI_API_KEY"
+export USE_LOCAL_MODEL="$USE_LOCAL_MODEL"
+export LOCAL_MODEL_PATH="$LOCAL_MODEL_PATH"
+export MEMORY_PERSISTENCE="$MEMORY_PERSISTENCE"
+export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/nexus"
 
-# Configure OpenAI API key if set
-OPENAI_API_KEY=$(bashio::config 'openai_api_key' '')
-if [[ ! -z "${OPENAI_API_KEY}" ]]; then
-    export OPENAI_API_KEY="${OPENAI_API_KEY}"
-fi
+# Make sure the data directory exists
+mkdir -p "$DATA_DIR"
 
-# Configure local LLM usage
-export USE_LOCAL_LLM="${USE_LOCAL_LLM}"
-export LOCAL_LLM_URL="${LOCAL_LLM_URL}"
-export DATA_RETENTION_DAYS="${DATA_RETENTION_DAYS}"
+# Initialize PostgreSQL and run database setup
+echo "Setting up PostgreSQL database..."
+pg_ready=false
+while ! $pg_ready; do
+  if pg_isready -h localhost -p 5432 -U postgres; then
+    pg_ready=true
+  else
+    echo "Waiting for PostgreSQL to be ready..."
+    sleep 2
+  fi
+done
 
-# Enable ingress for Nexus AI
-INGRESS_PORT=$(bashio::addon.ingress_port)
-export PORT="${INGRESS_PORT}"
+# Create database if it doesn't exist
+psql -h localhost -p 5432 -U postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'nexus'" | grep -q 1 || \
+    psql -h localhost -p 5432 -U postgres -c "CREATE DATABASE nexus"
 
-# Start the Nexus AI application with ingress support
-cd /app
-exec python3 -m nexus.main --host 0.0.0.0 --port "${INGRESS_PORT}"
+# Create tables if they don't exist
+python -m nexus.database.init
+
+# Start the application
+echo "Starting Nexus AI..."
+exec python -m uvicorn nexus.main:app --host 0.0.0.0 --port 5000

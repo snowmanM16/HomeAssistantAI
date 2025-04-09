@@ -3,196 +3,208 @@ Google Calendar integration for Nexus AI
 """
 import os
 import logging
-from typing import List, Dict, Any, Optional
-import json
-from datetime import datetime, timedelta
-import pytz
-from pathlib import Path
+import pickle
+import datetime
+from typing import Dict, Any, List, Optional
 
-import google.oauth2.credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request
-from googleapiclient.discovery import build
-
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("nexus.calendar")
 
 class GoogleCalendar:
     """Interface for Google Calendar API."""
     
     def __init__(self, data_dir: str = None):
         """Initialize the Google Calendar client."""
-        self.data_dir = data_dir or os.environ.get("DATA_DIR", ".")
-        self.credentials_path = Path(self.data_dir) / "google_credentials.json"
-        self.token_path = Path(self.data_dir) / "google_token.json"
+        # Set data directory for credentials and token
+        if not data_dir:
+            data_dir = os.environ.get('DATA_DIR', '/data/nexus')
+        
+        self.data_dir = data_dir
+        self.credentials_path = os.path.join(data_dir, 'gcalendar_credentials.json')
+        self.token_path = os.path.join(data_dir, 'gcalendar_token.pickle')
+        
+        # Create directory if it doesn't exist
+        os.makedirs(data_dir, exist_ok=True)
+        
+        # Initialize client
         self.service = None
-        self.credentials = None
-        self.scopes = ["https://www.googleapis.com/auth/calendar.readonly"]
+        self._load_credentials()
     
     def _load_credentials(self):
         """Load or refresh Google API credentials."""
-        # Check if token exists
-        if self.token_path.exists():
-            with open(self.token_path, "r") as token_file:
-                token_data = json.load(token_file)
-                self.credentials = google.oauth2.credentials.Credentials.from_authorized_user_info(
-                    token_data, self.scopes
-                )
-        
-        # If credentials don't exist or are invalid, return False
-        if not self.credentials or not self.credentials.valid:
-            if self.credentials and self.credentials.expired and self.credentials.refresh_token:
-                try:
-                    self.credentials.refresh(Request())
-                    self._save_token()
-                except Exception as e:
-                    logger.error(f"Error refreshing credentials: {e}")
-                    return False
-            else:
-                return False
-        
-        # Build the service
         try:
-            self.service = build("calendar", "v3", credentials=self.credentials)
-            return True
+            from google.oauth2.credentials import Credentials
+            from google_auth_oauthlib.flow import InstalledAppFlow
+            from google.auth.transport.requests import Request
+            from googleapiclient.discovery import build
+            
+            # Define scopes
+            SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
+            
+            creds = None
+            
+            # Load saved token if it exists
+            if os.path.exists(self.token_path):
+                with open(self.token_path, 'rb') as token:
+                    creds = pickle.load(token)
+            
+            # Refresh token if expired
+            if creds and creds.expired and creds.refresh_token:
+                creds.refresh(Request())
+                self._save_token(creds)
+            
+            # If we have valid credentials, build the service
+            if creds and creds.valid:
+                self.service = build('calendar', 'v3', credentials=creds)
+                logger.info("Google Calendar service initialized")
+            else:
+                logger.warning("No valid Google Calendar credentials found")
+        except ImportError:
+            logger.warning("Google API packages not installed")
         except Exception as e:
-            logger.error(f"Error building calendar service: {e}")
-            return False
+            logger.error(f"Error loading Google Calendar credentials: {e}")
     
-    def _save_token(self):
+    def _save_token(self, creds):
         """Save the current token for future use."""
-        if not self.credentials:
-            return
-        
-        token_data = {
-            "token": self.credentials.token,
-            "refresh_token": self.credentials.refresh_token,
-            "token_uri": self.credentials.token_uri,
-            "client_id": self.credentials.client_id,
-            "client_secret": self.credentials.client_secret,
-            "scopes": self.credentials.scopes
-        }
-        
-        with open(self.token_path, "w") as token_file:
-            json.dump(token_data, token_file)
+        with open(self.token_path, 'wb') as token:
+            pickle.dump(creds, token)
+        logger.debug("Google Calendar token saved")
     
     async def authorize_with_code(self, auth_code: str) -> bool:
         """Authorize with Google using the provided code."""
         try:
-            if not self.credentials_path.exists():
-                logger.error("Google client configuration file not found")
+            from google_auth_oauthlib.flow import InstalledAppFlow
+            from googleapiclient.discovery import build
+            
+            # Check if credentials file exists
+            if not os.path.exists(self.credentials_path):
+                logger.error("Credentials file not found")
                 return False
             
+            # Set up the flow with the credentials file
             flow = InstalledAppFlow.from_client_secrets_file(
                 self.credentials_path,
-                scopes=self.scopes
+                scopes=['https://www.googleapis.com/auth/calendar.readonly'],
+                redirect_uri='urn:ietf:wg:oauth:2.0:oob'
             )
             
+            # Exchange auth code for credentials
             flow.fetch_token(code=auth_code)
-            self.credentials = flow.credentials
-            self._save_token()
+            creds = flow.credentials
             
-            return self._load_credentials()
+            # Save the credentials for future use
+            self._save_token(creds)
+            
+            # Build the service
+            self.service = build('calendar', 'v3', credentials=creds)
+            
+            return True
         except Exception as e:
-            logger.error(f"Error authorizing with code: {e}")
+            logger.error(f"Error authorizing with Google: {e}")
             return False
     
     async def get_today_events(self) -> List[Dict[str, str]]:
         """Get events for today from Google Calendar."""
-        if not self._load_credentials():
+        if not self.service:
+            logger.warning("Google Calendar service not initialized")
             return []
         
         try:
-            # Get timezone from system
-            local_tz = datetime.now().astimezone().tzinfo
-            
-            # Calculate today's timeframe
-            now = datetime.now(local_tz)
-            start_of_day = datetime(now.year, now.month, now.day, 0, 0, 0, tzinfo=local_tz)
-            end_of_day = datetime(now.year, now.month, now.day, 23, 59, 59, tzinfo=local_tz)
-            
-            # Convert to ISO format
-            start_time_iso = start_of_day.isoformat()
-            end_time_iso = end_of_day.isoformat()
+            # Get today's date boundaries
+            now = datetime.datetime.utcnow()
+            today_start = datetime.datetime(now.year, now.month, now.day, 0, 0, 0).isoformat() + 'Z'
+            today_end = datetime.datetime(now.year, now.month, now.day, 23, 59, 59).isoformat() + 'Z'
             
             # Call the Calendar API
             events_result = self.service.events().list(
-                calendarId="primary",
-                timeMin=start_time_iso,
-                timeMax=end_time_iso,
+                calendarId='primary',
+                timeMin=today_start,
+                timeMax=today_end,
                 singleEvents=True,
-                orderBy="startTime"
+                orderBy='startTime'
             ).execute()
+            events = events_result.get('items', [])
             
-            # Process events
-            events = events_result.get("items", [])
+            # Format events
+            formatted_events = []
+            for event in events:
+                formatted_events.append(self._format_event(event))
             
-            return [self._format_event(event) for event in events]
-        
+            return formatted_events
         except Exception as e:
             logger.error(f"Error getting today's events: {e}")
             return []
     
     async def get_upcoming_events(self, days: int = 7) -> List[Dict[str, Any]]:
         """Get upcoming events for the next X days."""
-        if not self._load_credentials():
+        if not self.service:
+            logger.warning("Google Calendar service not initialized")
             return []
         
         try:
-            # Get timezone from system
-            local_tz = datetime.now().astimezone().tzinfo
-            
-            # Calculate timeframe
-            now = datetime.now(local_tz)
-            end_date = now + timedelta(days=days)
-            
-            # Convert to ISO format
-            start_time_iso = now.isoformat()
-            end_time_iso = end_date.isoformat()
+            # Calculate time boundaries
+            now = datetime.datetime.utcnow()
+            future = now + datetime.timedelta(days=days)
+            now_str = now.isoformat() + 'Z'
+            future_str = future.isoformat() + 'Z'
             
             # Call the Calendar API
             events_result = self.service.events().list(
-                calendarId="primary",
-                timeMin=start_time_iso,
-                timeMax=end_time_iso,
+                calendarId='primary',
+                timeMin=now_str,
+                timeMax=future_str,
                 singleEvents=True,
-                orderBy="startTime"
+                orderBy='startTime'
             ).execute()
+            events = events_result.get('items', [])
             
-            # Process events
-            events = events_result.get("items", [])
+            # Format events
+            formatted_events = []
+            for event in events:
+                formatted_events.append(self._format_event(event))
             
-            return [self._format_event(event) for event in events]
-        
+            return formatted_events
         except Exception as e:
             logger.error(f"Error getting upcoming events: {e}")
             return []
     
     def _format_event(self, event: Dict[str, Any]) -> Dict[str, Any]:
         """Format a Google Calendar event into a simplified structure."""
-        # Get start and end times (handling all-day events)
-        start = event.get("start", {})
-        end = event.get("end", {})
+        start = event.get('start', {})
+        end = event.get('end', {})
         
-        # Format the event
-        formatted_event = {
-            "id": event.get("id", ""),
-            "summary": event.get("summary", "Untitled Event"),
-            "description": event.get("description", ""),
-            "location": event.get("location", ""),
-            "all_day": "date" in start and "dateTime" not in start
+        # Format start time
+        start_time = None
+        if 'dateTime' in start:
+            start_dt = datetime.datetime.fromisoformat(start['dateTime'].replace('Z', '+00:00'))
+            start_time = start_dt.strftime('%H:%M')
+        elif 'date' in start:
+            # All-day event
+            start_time = "All day"
+        
+        # Format end time
+        end_time = None
+        if 'dateTime' in end:
+            end_dt = datetime.datetime.fromisoformat(end['dateTime'].replace('Z', '+00:00'))
+            end_time = end_dt.strftime('%H:%M')
+        
+        # Format date
+        date = None
+        if 'dateTime' in start:
+            date_dt = datetime.datetime.fromisoformat(start['dateTime'].replace('Z', '+00:00'))
+            date = date_dt.strftime('%Y-%m-%d')
+        elif 'date' in start:
+            date = start['date']
+        
+        return {
+            'id': event.get('id'),
+            'summary': event.get('summary', 'Unnamed event'),
+            'description': event.get('description', ''),
+            'location': event.get('location', ''),
+            'start_time': start_time,
+            'end_time': end_time,
+            'date': date,
+            'all_day': 'dateTime' not in start,
+            'organizer': event.get('organizer', {}).get('email', ''),
+            'attendees': [a.get('email') for a in event.get('attendees', [])],
+            'status': event.get('status', '')
         }
-        
-        # Handle datetime format based on all-day or timed event
-        if formatted_event["all_day"]:
-            formatted_event["start_date"] = start.get("date", "")
-            formatted_event["end_date"] = end.get("date", "")
-        else:
-            start_dt = datetime.fromisoformat(start.get("dateTime", "").replace("Z", "+00:00"))
-            end_dt = datetime.fromisoformat(end.get("dateTime", "").replace("Z", "+00:00"))
-            
-            formatted_event["start_datetime"] = start_dt.isoformat()
-            formatted_event["end_datetime"] = end_dt.isoformat()
-            formatted_event["start_time"] = start_dt.strftime("%H:%M")
-            formatted_event["end_time"] = end_dt.strftime("%H:%M")
-        
-        return formatted_event

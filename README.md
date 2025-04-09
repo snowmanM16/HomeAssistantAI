@@ -1,30 +1,40 @@
-# Nexus AI Add-on Repository
+# Nexus AI for Home Assistant
 
-This repository contains the Nexus AI add-on for Home Assistant Supervisor.
+This repository contains Nexus AI, an intelligent assistant for Home Assistant that uses AI to enhance your smart home experience.
 
-## Installation
+## Testing & Development Installation
 
-### Add-on Repository
+### Method: Custom Add-on Repository
 
-1. Navigate to your Home Assistant instance
-2. Go to **Settings** → **Add-ons** → **Add-on Store**
-3. Click the three dots in the upper right corner and select **Repositories**
-4. Add the URL to this repository and click **Add**
-5. Find the "Nexus AI" add-on and click it
-6. Click **Install**
+You don't need approval to test this as a custom repository:
 
-## Documentation
+1. In your Home Assistant instance, go to **Settings** → **Add-ons** → **Add-on Store**
+2. Click the three dots in the upper right corner and select **Repositories**
+3. Add the URL to this repository and click **Add**
+4. The Nexus AI add-on will appear in your add-on store
+5. Install and test it like any other add-on
 
-See the [DOCS.md](nexus-ai-addon/DOCS.md) file for detailed documentation.
+### Project Structure
+
+This repository follows the standard Home Assistant add-on repository structure:
+
+- `nexus-ai-addon/` - Contains the add-on files
+  - `config.json` - Add-on configuration
+  - `Dockerfile` - Container definition
+  - `run.sh` - Startup script
+  - Other supporting files
 
 ## Features
 
 - 🤖 Natural language interface for controlling your smart home
 - 🔍 Pattern recognition to detect habits and preferences
 - ⚡ Automated suggestion and creation of Home Assistant automations
-- 🧠 Long-term memory storage for user preferences and habits
+- 🧠 Long-term memory storage for user preferences
 - 📅 Google Calendar integration for context-aware assistance
-- 🔄 Self-learning capabilities that improve over time
+
+## Documentation
+
+See the [DOCS.md](nexus-ai-addon/DOCS.md) file for detailed documentation.
 
 ## License
 

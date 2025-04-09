@@ -1,44 +1,50 @@
-# Nexus AI Add-on for Home Assistant
+# Nexus AI Home Assistant Add-on
 
-![Nexus AI Logo](logo.png)
-
-## Description
-
-Nexus AI is an intelligent AI assistant for Home Assistant that enhances your smart home with advanced pattern recognition and automation capabilities. It uses artificial intelligence to learn from your habits and preferences, suggest automations, and provide natural language interaction with your smart home.
+Nexus AI is an intelligent assistant for Home Assistant that combines AI capabilities with home automation control and memory.
 
 ## Features
 
-- 🤖 **Natural Language Interface**: Control your smart home by chatting with Nexus AI using everyday language
-- 🧠 **Self-learning AI**: Nexus AI learns your habits and preferences over time
-- 🔍 **Pattern Recognition**: Automatically detects patterns in your smart home usage
-- ⚡ **Automation Suggestions**: Creates and suggests automations based on your habits
-- 📅 **Calendar Integration**: Connects with Google Calendar for context-aware assistance
-- 🔒 **Secure Integration**: Utilizes Home Assistant long-lived access tokens for secure API access
-- 💾 **Memory Management**: Remembers important information and preferences with forgetting curves
+- Natural language interaction with your smart home
+- Memory for preferences and patterns
+- Smart automation suggestions
+- Google Calendar integration
+- Support for both OpenAI API and local models
+- Responsive web interface with Home Assistant ingress support
 
 ## Installation
 
-This is a custom Home Assistant add-on that requires Home Assistant Supervisor.
-
-### Add the Repository
-
-1. Navigate to your Home Assistant instance
-2. Go to **Settings** → **Add-ons** → **Add-on Store**
-3. Click the three dots in the upper right corner and select **Repositories**
-4. Add the URL to this repository and click **Add**
-5. Find the "Nexus AI" add-on in the store and click on it
-6. Click **Install**
+1. Add this repository to your Home Assistant add-on store
+2. Install the Nexus AI add-on
+3. Configure your API keys and preferences
+4. Start the add-on
+5. Access the Nexus AI panel in your Home Assistant sidebar
 
 ## Configuration
 
-Please follow the configuration instructions in the [DOCS.md](DOCS.md) file.
+| Option | Description |
+|--------|-------------|
+| `log_level` | The log level for the add-on |
+| `openai_api_key` | Your OpenAI API key (required for cloud AI features) |
+| `use_local_model` | Set to true to use a local LLM instead of OpenAI |
+| `local_model_path` | Path to the local model file (if using a local model) |
+| `memory_persistence` | Enable/disable persistent memory storage |
+| `data_directory` | Directory to store data (default: /data/nexus) |
 
-## Screenshots
+## Usage
 
-![Nexus AI Chat Interface](screenshots/chat.png)
-![Automation Suggestions](screenshots/automations.png)
-![Settings Page](screenshots/settings.png)
+1. Click on the Nexus AI icon in your Home Assistant sidebar
+2. Type your questions or commands in the chat interface
+3. Nexus AI will respond and perform actions as needed
 
-## License
+## Example queries
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+- "What's the temperature in the living room?"
+- "Turn on the kitchen lights"
+- "Remember that I like to keep the bedroom at 68 degrees at night"
+- "What's on my calendar today?"
+- "Create an automation to turn off all lights when I leave home"
+- "What patterns have you noticed in my usage?"
+
+## Support
+
+For issues and feature requests, please visit the [GitHub repository](https://github.com/yourusername/nexus_ai).
