@@ -1,11 +1,12 @@
 import os
 import json
 import logging
-import openai
-from typing import Dict, Any, List, Optional, Tuple
 import datetime
 import asyncio
+import re
+from typing import Dict, Any, List, Optional, Tuple
 from .memory import MemoryManager
+from .openai_helper import ask_gpt, extract_actions
 
 logger = logging.getLogger("nexus.agent")
 
@@ -24,9 +25,6 @@ class NexusAgent:
         self.openai_api_key = os.getenv("OPENAI_API_KEY", "")
         if not self.openai_api_key:
             logger.warning("OpenAI API key not set. AI functionality will be limited.")
-        else:
-            # Initialize OpenAI client
-            self.client = openai.OpenAI(api_key=self.openai_api_key)
     
     async def process_query(self, query: str, context: Optional[Dict[str, Any]] = None) -> str:
         """Process a user query with context and memory."""
@@ -106,16 +104,12 @@ class NexusAgent:
         logger.debug(f"Sending request to OpenAI with messages: {messages}")
         
         try:
-            # the newest OpenAI model is "gpt-4o" which was released May 13, 2024.
-            # do not change this unless explicitly requested by the user
-            response = self.client.chat.completions.create(
-                model="gpt-4o",
-                messages=messages,
-                temperature=0.7,
-                max_tokens=1500
+            # Use our OpenAI helper to get a response
+            ai_response = await ask_gpt(
+                prompt=query,
+                system_prompt=system_message,
+                context=f"Home Assistant state: {ha_context}{additional_context}"
             )
-            
-            ai_response = response.choices[0].message.content
             
             # Save the interaction to memory
             current_date = datetime.datetime.now().strftime("%Y-%m-%d")
@@ -130,7 +124,7 @@ class NexusAgent:
             return ai_response
             
         except Exception as e:
-            logger.error(f"Error calling OpenAI API: {e}")
+            logger.error(f"Error processing query: {e}")
             return f"I encountered an error processing your request: {str(e)}"
     
     def _extract_relevant_ha_states(self, ha_state: Dict[str, Any], query: str) -> str:
@@ -178,19 +172,34 @@ class NexusAgent:
     
     async def _process_actions(self, response: str) -> None:
         """Process any actions indicated in the AI response."""
-        # Example pattern: [ACTION:domain.service:{"entity_id":"light.living_room"}]
-        import re
-        
-        action_pattern = r'\[ACTION:([\w\.]+):({.*?})\]'
-        matches = re.findall(action_pattern, response)
-        
-        for match in matches:
-            try:
-                service_call, data_str = match
-                domain, service = service_call.split('.')
-                data = json.loads(data_str)
-                
-                logger.info(f"Executing action: {domain}.{service} with data: {data}")
-                await self.ha_api.call_service(domain, service, data)
-            except Exception as e:
-                logger.error(f"Failed to execute action from response: {e}")
+        try:
+            # First check for actions in the old format pattern: [ACTION:domain.service:{"entity_id":"light.living_room"}]
+            action_pattern = r'\[ACTION:([\w\.]+):({.*?})\]'
+            matches = re.findall(action_pattern, response)
+            
+            for match in matches:
+                try:
+                    service_call, data_str = match
+                    domain, service = service_call.split('.')
+                    data = json.loads(data_str)
+                    
+                    logger.info(f"Executing action: {domain}.{service} with data: {data}")
+                    await self.ha_api.call_service(domain, service, data)
+                except Exception as e:
+                    logger.error(f"Failed to execute action from response: {e}")
+            
+            # Then use the new structured extraction method
+            actions = await extract_actions(response)
+            for action in actions:
+                try:
+                    domain = action.get('domain')
+                    service = action.get('service')
+                    data = action.get('data', {})
+                    
+                    if domain and service:
+                        logger.info(f"Executing extracted action: {domain}.{service} with data: {data}")
+                        await self.ha_api.call_service(domain, service, data)
+                except Exception as e:
+                    logger.error(f"Failed to execute extracted action: {e}")
+        except Exception as e:
+            logger.error(f"Error in action processing: {e}")

@@ -70,10 +70,10 @@ class MemoryManager:
     def _init_chromadb(self):
         """Initialize ChromaDB for vector embeddings."""
         try:
-            self.chroma_client = chromadb.Client(Settings(
-                chroma_db_impl="duckdb+parquet",
-                persist_directory=self.chroma_path
-            ))
+            # Using updated client construction following migration guide
+            self.chroma_client = chromadb.PersistentClient(
+                path=self.chroma_path
+            )
             
             # Create a collection for memory
             self.memory_collection = self.chroma_client.get_or_create_collection(
@@ -84,6 +84,7 @@ class MemoryManager:
             logger.info("ChromaDB initialized successfully")
         except Exception as e:
             logger.error(f"Failed to initialize ChromaDB: {e}")
+            # Graceful fallback to not block the entire application
             self.chroma_client = None
             self.memory_collection = None
     

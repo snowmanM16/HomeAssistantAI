@@ -1,30 +1,35 @@
-FROM python:3.11-slim
+ARG BUILD_FROM
+FROM $BUILD_FROM
 
-WORKDIR /app
+# Install system dependencies
+RUN apk add --no-cache \
+    python3 \
+    py3-pip \
+    git \
+    build-base \
+    python3-dev \
+    libffi-dev \
+    openssl-dev
 
-# Install required dependencies
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    build-essential \
-    ffmpeg \
-    libsndfile1 \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+# Set working directory
+WORKDIR /opt/nexus-ai
 
-# Create directories for data persistence
-RUN mkdir -p /data/nexus
+# Copy application files
+COPY . /opt/nexus-ai/
 
-# Copy requirements first to leverage Docker cache
-COPY requirements.txt requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies
+RUN pip3 install --no-cache-dir -r requirements.txt
 
-# Copy application code
-COPY nexus/ ./nexus/
-COPY run.sh ./run.sh
-RUN chmod +x run.sh
+# Make run script executable
+RUN chmod a+x /opt/nexus-ai/run.sh
 
-# Expose the port the app runs on
-EXPOSE 5000
+# Set the entrypoint
+ENTRYPOINT [ "/opt/nexus-ai/run.sh" ]
 
-# Command to run the application
-CMD ["./run.sh"]
+# Labels
+LABEL \
+    io.hass.name="Nexus AI" \
+    io.hass.description="Intelligent AI assistant with memory and smart home control" \
+    io.hass.type="addon" \
+    io.hass.version="0.1.0" \
+    maintainer="Your Name <your.email@example.com>"

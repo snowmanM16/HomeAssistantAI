@@ -1,26 +1,32 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bashio
 
 CONFIG_PATH=/data/options.json
 
-# Get configuration variables
-export OPENAI_API_KEY="$(jq --raw-output '.openai_api_key // empty' $CONFIG_PATH)"
-export GOOGLE_CALENDAR_ENABLED="$(jq --raw-output '.google_calendar_enabled // false' $CONFIG_PATH)"
-export GOOGLE_CALENDAR_CREDENTIALS="$(jq --raw-output '.google_calendar_credentials // empty' $CONFIG_PATH)"
-export VOICE_ENABLED="$(jq --raw-output '.voice_enabled // false' $CONFIG_PATH)"
-export LOG_LEVEL="$(jq --raw-output '.log_level // "info"' $CONFIG_PATH)"
+# Get configuration values
+export LOG_LEVEL=$(bashio::config 'log_level')
+export DATA_DIR=/data
+export LOGS_DIR=/data/logs
+export VOICE_ENABLED=$(bashio::config 'voice_enabled')
+export GOOGLE_CALENDAR_ENABLED=$(bashio::config 'google_calendar_enabled')
+export OPENAI_API_KEY=$(bashio::config 'openai_api_key')
 
-# Set default supervisor token from env
-export SUPERVISOR_TOKEN=${SUPERVISOR_TOKEN:-""}
+# Create required directories
+mkdir -p /data/db
+mkdir -p /data/chromadb
+mkdir -p /data/logs
 
-# Create or validate data directory
-mkdir -p /data/nexus/db
-mkdir -p /data/nexus/chromadb
-mkdir -p /data/nexus/logs
+# Display startup message
+bashio::log.info "Starting Nexus AI..."
+bashio::log.info "Log level: ${LOG_LEVEL}"
+bashio::log.info "Data directory: ${DATA_DIR}"
+bashio::log.info "Voice enabled: ${VOICE_ENABLED}"
+bashio::log.info "Google Calendar enabled: ${GOOGLE_CALENDAR_ENABLED}"
 
-# Set up logging
-echo "Starting Nexus AI with log level: $LOG_LEVEL"
+# Check for API key
+if [ -z "${OPENAI_API_KEY}" ]; then
+  bashio::log.warning "OpenAI API key not provided. AI capabilities will be limited."
+fi
 
-# Start the FastAPI server
-cd /app
-exec python -m uvicorn nexus.main:app --host 0.0.0.0 --port 5000
+# Run the application
+cd /opt/nexus-ai
+python -m uvicorn nexus.main:app --host 0.0.0.0 --port 8099

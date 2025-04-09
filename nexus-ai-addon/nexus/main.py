@@ -133,12 +133,20 @@ except Exception as e:
 async def root():
     """Serve the web interface."""
     try:
+        # Try to serve the modern UI first
+        modern_ui_path = os.path.join(static_dir, 'modern-ui.html')
+        if os.path.exists(modern_ui_path):
+            logger.info(f"Serving modern UI from: {modern_ui_path}")
+            with open(modern_ui_path, "r") as f:
+                return f.read()
+        
+        # Fall back to legacy UI if modern UI is not available
         index_path = os.path.join(static_dir, 'index.html')
-        logger.info(f"Serving index from: {index_path}")
+        logger.info(f"Serving legacy UI from: {index_path}")
         with open(index_path, "r") as f:
             return f.read()
     except Exception as e:
-        logger.error(f"Failed to serve index.html: {e}")
+        logger.error(f"Failed to serve UI: {e}")
         return HTMLResponse("<html><body><h1>Nexus AI</h1><p>Error: Failed to load web interface</p></body></html>")
 
 @app.get("/health")
