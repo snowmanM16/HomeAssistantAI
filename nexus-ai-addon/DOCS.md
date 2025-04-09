@@ -15,7 +15,7 @@ Nexus AI is an intelligent AI assistant for Home Assistant that enhances your sm
 
 ## Installation
 
-### Option 1: Add-on Installation
+### Add-on Installation
 
 1. Navigate to your Home Assistant instance.
 2. Go to **Settings** → **Add-ons** → **Add-on Store**.
@@ -27,19 +27,6 @@ Nexus AI is an intelligent AI assistant for Home Assistant that enhances your sm
 8. Start the add-on.
 9. Check the logs to make sure everything is working correctly.
 
-### Option 2: Installation through HACS
-
-1. Make sure you have [HACS](https://hacs.xyz/) installed.
-2. Go to HACS in your Home Assistant instance.
-3. Click on **Integrations**.
-4. Click the three dots in the upper right corner and select **Custom repositories**.
-5. Add the URL `https://github.com/yourusername/nexus-ai-addon` with category **Integration**.
-6. Click **Add**.
-7. Search for "Nexus AI" and install it.
-8. Restart Home Assistant.
-9. Go to **Settings** → **Devices & Services** → **Add Integration** and search for "Nexus AI".
-10. Follow the configuration steps.
-
 ## Configuration
 
 ### Add-on Configuration Options
@@ -50,6 +37,7 @@ Nexus AI is an intelligent AI assistant for Home Assistant that enhances your sm
 | `use_local_llm` | Whether to use a local language model instead of OpenAI |
 | `local_llm_url` | URL to a local LLM server (like Llama) if `use_local_llm` is true |
 | `data_retention_days` | Number of days to keep historical data (1-365) |
+| `openai_api_key` | Optional: Your OpenAI API key for AI processing |
 
 ### Initial Setup
 

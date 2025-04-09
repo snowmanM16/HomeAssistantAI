@@ -26,12 +26,14 @@
     "log_level": "info",
     "use_local_llm": false,
     "local_llm_url": "",
-    "data_retention_days": 30
+    "data_retention_days": 30,
+    "openai_api_key": ""
   },
   "schema": {
     "log_level": "list(trace|debug|info|warning|error|critical)",
     "use_local_llm": "bool",
     "local_llm_url": "str?",
-    "data_retention_days": "int(1,365)"
+    "data_retention_days": "int(1,365)",
+    "openai_api_key": "password?"
   }
 }

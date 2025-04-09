@@ -18,7 +18,20 @@ Nexus AI is an intelligent AI assistant for Home Assistant that enhances your sm
 
 ## Installation
 
-Please follow the installation instructions in the [DOCS.md](DOCS.md) file.
+This is a custom Home Assistant add-on that requires Home Assistant Supervisor.
+
+### Add the Repository
+
+1. Navigate to your Home Assistant instance
+2. Go to **Settings** → **Add-ons** → **Add-on Store**
+3. Click the three dots in the upper right corner and select **Repositories**
+4. Add the URL to this repository and click **Add**
+5. Find the "Nexus AI" add-on in the store and click on it
+6. Click **Install**
+
+## Configuration
+
+Please follow the configuration instructions in the [DOCS.md](DOCS.md) file.
 
 ## Screenshots
 

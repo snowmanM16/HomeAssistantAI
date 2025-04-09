@@ -1,115 +1,67 @@
-# Nexus AI Installation Guide
+# Installation Guide for Nexus AI Add-on
 
-This guide provides detailed steps for installing Nexus AI on your Home Assistant system.
+## Requirements
 
-## Option 1: Installation via Home Assistant Add-on Store
+- Home Assistant with Supervisor (Home Assistant OS, Home Assistant Supervised, etc.)
+- Internet connection for initial setup
+- Optional: OpenAI API key for advanced AI features
 
-This is the recommended and easiest way to install Nexus AI.
+## Installation Methods
 
-### Step 1: Add the Repository
+### Method 1: Add-on Repository
 
-1. In Home Assistant, navigate to **Settings** → **Add-ons**
-2. Click the menu (three dots) in the top-right corner 
-3. Select **Repositories**
-4. Add the repository URL: `https://github.com/yourusername/nexus-ai-addon`
-5. Click **Add**
+1. Navigate to your Home Assistant instance
+2. Go to **Settings** → **Add-ons** → **Add-on Store**
+3. Click the three dots in the upper right corner and select **Repositories**
+4. Add the URL `https://github.com/yourusername/nexus-ai-addon` and click **Add**
+5. Find the "Nexus AI" add-on and click it
+6. Click **Install**
 
-### Step 2: Install the Add-on
+### Method 2: Manual Installation
 
-1. After adding the repository, click on **Add-on Store**
-2. Refresh the page if Nexus AI doesn't appear immediately
-3. Find **Nexus AI** in the list of add-ons
-4. Click on it, then click **Install**
-5. Wait for the installation to complete
+If you prefer to manually install the add-on:
 
-### Step 3: Configuration
+1. SSH into your Home Assistant host
+2. Navigate to the add-on directory:
+   ```bash
+   cd /addons
+   ```
+3. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/nexus-ai-addon
+   ```
+4. Restart Home Assistant
+5. Go to **Settings** → **Add-ons** → **Add-on Store**
+6. Find "Nexus AI" in the list of local add-ons
+7. Click **Install**
 
-1. Once installed, go to the **Configuration** tab
-2. Enter your OpenAI API key
-3. Configure other options as needed:
-   - Voice enablement
-   - Google Calendar integration
-4. Click **Save**
+## Post-Installation Setup
 
-### Step 4: Start the Add-on
+After installing the add-on:
 
-1. Go to the **Info** tab
-2. Click **Start**
-3. Enable **Start on boot** and **Watchdog** for automatic startup and monitoring
-4. Click **Open Web UI** to access Nexus AI
+1. Configure the add-on options:
+   - Set your desired log level
+   - Optionally provide your OpenAI API key for cloud-based AI processing
+   - Configure local LLM settings if you prefer to use local language models
 
-## Option 2: Manual Installation
+2. Start the add-on
 
-For advanced users who want to install manually.
+3. Open the Nexus AI web interface:
+   - The interface will be available as a sidebar item
+   - Alternatively, you can access it directly via the URL provided in the add-on info
 
-### Prerequisites
-
-- Home Assistant Supervised or Home Assistant OS
-- Access to the host system
-- Git installed
-
-### Step 1: Clone the Repository
-
-```bash
-# Connect to your Home Assistant host
-ssh homeassistant@your-ha-ip
-
-# Navigate to the add-ons directory
-cd /addons
-
-# Clone the repository
-git clone https://github.com/yourusername/nexus-ai-addon.git nexus-ai
-```
-
-### Step 2: Install via Add-on Store
-
-1. In Home Assistant, navigate to **Settings** → **Add-ons**
-2. Click the **Check for updates** button (refresh icon)
-3. **Nexus AI** should appear in the local add-ons section
-4. Click on it and follow the installation steps above (Step 2-4 from Option 1)
-
-## Option 3: HACS Installation (Custom Integration)
-
-For users who prefer to install as a custom integration through HACS.
-
-Please see [HACS_INSTALLATION.md](HACS_INSTALLATION.md) for detailed instructions.
+4. Complete the initial setup:
+   - Configure your Home Assistant connection settings
+   - Set up other integrations (like Google Calendar)
+   - Customize your preferences
 
 ## Troubleshooting
 
-### Common Issues
+If you encounter any issues during installation:
 
-1. **Add-on not appearing in store:**
-   - Make sure you've added the correct repository URL
-   - Try refreshing the page or check for updates
-   - Restart Home Assistant
+- Check the add-on logs for specific error messages
+- Ensure your Home Assistant instance meets the requirements
+- Verify that you have proper internet connectivity
+- Make sure you have sufficient free disk space (at least 1GB recommended)
 
-2. **Installation errors:**
-   - Check the logs for specific error messages
-   - Ensure you have enough disk space
-   - Make sure your Home Assistant instance meets the requirements
-
-3. **Connection issues:**
-   - Verify your Home Assistant URL and token are correct
-   - Check network connectivity
-   - Ensure your Home Assistant instance is accessible
-
-4. **OpenAI API errors:**
-   - Verify your API key is correct
-   - Check your OpenAI account status and billing
-   - Make sure you have access to the required models
-
-### Getting Help
-
-If you encounter issues not covered in this guide:
-
-1. Check the [GitHub repository](https://github.com/yourusername/nexus-ai-addon) for known issues
-2. Open a new issue with detailed information about your problem
-3. Include logs, your Home Assistant version, and steps to reproduce the issue
-
-## Updating
-
-To update Nexus AI:
-
-1. In Home Assistant, navigate to **Settings** → **Add-ons** → **Nexus AI**
-2. Click on the **Update** button if an update is available
-3. The add-on will automatically restart after updating
+For more detailed troubleshooting, refer to the [DOCS.md](DOCS.md) file.

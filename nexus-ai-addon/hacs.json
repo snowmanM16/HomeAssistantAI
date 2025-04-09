@@ -1,7 +1,0 @@
-{
-  "name": "Nexus AI",
-  "render_readme": true,
-  "domains": [],
-  "country": ["US", "CA", "AU", "GB", "NZ", "DE", "FR", "NL", "SE", "NO", "DK", "FI", "IS", "IT", "ES", "PT", "AT", "CH", "BE", "LU"],
-  "homeassistant": "2023.9.0"
-}
