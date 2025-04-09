@@ -12,13 +12,24 @@ class HomeAssistantAPI:
     
     def __init__(self):
         """Initialize the Home Assistant API client."""
-        self.token = os.environ.get("SUPERVISOR_TOKEN", "")
-        if not self.token:
-            logger.warning("No Home Assistant API token found in environment.")
+        # Try to get token from different sources (in order of priority)
+        self.token = os.environ.get("SUPERVISOR_TOKEN") or os.environ.get("HASS_TOKEN") or os.environ.get("HA_LONG_LIVED_TOKEN", "")
         
+        if not self.token:
+            logger.warning("No Home Assistant API token found in environment. You will need to configure a long-lived access token.")
+        
+        # Get base URL from environment or use default
+        ha_host = os.environ.get("HASS_URL", "http://supervisor/core")
+        
+        # Remove trailing slash if present
+        if ha_host.endswith('/'):
+            ha_host = ha_host[:-1]
+            
         # API endpoints
-        self.base_url = "http://supervisor/core/api"
-        self.websocket_url = "ws://supervisor/core/websocket"
+        self.base_url = f"{ha_host}/api"
+        self.websocket_url = ha_host.replace('http', 'ws') + "/api/websocket"
+        
+        logger.info(f"Home Assistant API configured with base URL: {self.base_url}")
         
         # Session for HTTP requests
         self.session = None
@@ -28,6 +39,10 @@ class HomeAssistantAPI:
         self.ws_id = 0
         self.ws_authenticated = False
         self.ws_tasks = []
+        
+        # Track connection status
+        self.connected = False
+        self.last_error = None
     
     async def _get_session(self):
         """Get or create the HTTP session."""
@@ -173,6 +188,117 @@ class HomeAssistantAPI:
             logger.info(f"Successfully subscribed to {event_type} events")
         else:
             logger.error(f"Failed to subscribe to {event_type} events: {response}")
+    
+    def configure(self, url: Optional[str] = None, token: Optional[str] = None) -> None:
+        """
+        Configure the Home Assistant API with a custom URL and token.
+        This allows setting up the connection after initialization.
+        
+        Args:
+            url: The Home Assistant URL (e.g., http://homeassistant.local:8123)
+            token: The long-lived access token
+        """
+        if token:
+            self.token = token
+            logger.info("Home Assistant API token configured")
+            
+        if url:
+            # Remove trailing slash if present
+            if url.endswith('/'):
+                url = url[:-1]
+                
+            # API endpoints
+            self.base_url = f"{url}/api"
+            self.websocket_url = url.replace('http', 'ws') + "/api/websocket"
+            logger.info(f"Home Assistant API URL configured: {self.base_url}")
+        
+        # Reset session to use new token if it was changed
+        if token and self.session and not self.session.closed:
+            asyncio.create_task(self.session.close())
+            self.session = None
+    
+    async def check_connection(self) -> Dict[str, Any]:
+        """
+        Check the connection to Home Assistant.
+        
+        Returns:
+            Dictionary with connection status information
+        """
+        if not self.token:
+            return {
+                "connected": False,
+                "error": "No API token configured"
+            }
+            
+        try:
+            # Try to get API status
+            session = await self._get_session()
+            url = f"{self.base_url}/config"
+            
+            async with session.get(url) as response:
+                response.raise_for_status()
+                config = await response.json()
+                
+                self.connected = True
+                self.last_error = None
+                
+                return {
+                    "connected": True,
+                    "version": config.get("version", "unknown"),
+                    "location_name": config.get("location_name", "unknown")
+                }
+                
+        except Exception as e:
+            self.connected = False
+            self.last_error = str(e)
+            logger.error(f"Error connecting to Home Assistant: {e}")
+            
+            return {
+                "connected": False,
+                "error": str(e)
+            }
+    
+    async def get_token_info(self) -> Dict[str, Any]:
+        """
+        Get information about the current access token.
+        
+        Returns:
+            Dictionary with token information
+        """
+        if not self.token:
+            return {
+                "valid": False,
+                "error": "No token configured"
+            }
+            
+        try:
+            session = await self._get_session()
+            
+            # We'll use the config endpoint to test authentication
+            url = f"{self.base_url}/config"
+            
+            async with session.get(url) as response:
+                if response.status == 200:
+                    return {
+                        "valid": True,
+                        "scopes": ["*"],  # Long-lived tokens typically have full access
+                        "expires": None  # Long-lived tokens don't expire
+                    }
+                elif response.status == 401:
+                    return {
+                        "valid": False,
+                        "error": "Invalid token"
+                    }
+                else:
+                    return {
+                        "valid": False,
+                        "error": f"Unexpected status code: {response.status}"
+                    }
+        except Exception as e:
+            return {
+                "valid": False,
+                "error": str(e)
+            }
     
     async def close(self):
         """Close all connections."""

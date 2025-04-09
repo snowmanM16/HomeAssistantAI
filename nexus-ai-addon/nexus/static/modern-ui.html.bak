@@ -147,59 +147,6 @@
             </section>
 
             <!-- Calendar Section -->
-            <!-- Automations Section -->
-            <section id="automationsSection" class="section-content">
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">AI-Generated Automation Suggestions</h3>
-                    </div>
-                    <div class="card-body">
-                        <div class="automation-suggestions" id="automationSuggestions">
-                            <div class="suggestion-item">
-                                <div class="suggestion-details">
-                                    <div class="suggestion-title">No automation suggestions yet</div>
-                                    <div class="suggestion-description">Suggestions will appear when Nexus AI detects patterns in your smart home usage.</div>
-                                </div>
-                                <div class="suggestion-actions">
-                                    <button class="btn btn-primary btn-sm" disabled>Apply</button>
-                                </div>
-                            </div>
-                        </div>
-                        <button class="btn btn-primary" id="refreshSuggestionsBtn">
-                            <i class="bi bi-arrow-repeat"></i> Generate Suggestions
-                        </button>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">Current Automations</h3>
-                    </div>
-                    <div class="card-body">
-                        <div class="automation-list" id="automationList">
-                            <!-- Automation list will be populated here -->
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">Create Custom Automation</h3>
-                    </div>
-                    <div class="card-body">
-                        <div class="form-group">
-                            <label for="automationName" class="form-label">Name</label>
-                            <input type="text" class="form-control" id="automationName" placeholder="Enter automation name">
-                        </div>
-                        <div class="form-group">
-                            <label for="automationDescription" class="form-label">Description</label>
-                            <textarea class="form-control" id="automationDescription" placeholder="Describe what this automation should do"></textarea>
-                        </div>
-                        <button class="btn btn-primary" id="createFromDescriptionBtn">Create with AI</button>
-                    </div>
-                </div>
-            </section>
-
             <section id="calendarSection" class="section-content">
                 <div class="calendar-container">
                     <div class="calendar-header">
@@ -287,30 +234,6 @@
 
                 <div class="settings-section">
                     <h3 class="settings-title">Features</h3>
-                <div class="settings-section">
-                    <h3 class="settings-title">Home Assistant Integration</h3>
-                    <div class="card">
-                        <div class="card-header">
-                            <h3 class="card-title">Configure Home Assistant Connection</h3>
-                        </div>
-                        <div class="card-body">
-                            <form id="haConfigForm">
-                                <div class="form-group">
-                                    <label for="haUrl" class="form-label">Home Assistant URL</label>
-                                    <input type="text" class="form-control" id="haUrl" placeholder="http://homeassistant.local:8123">
-                                    <small class="form-text text-muted">The URL of your Home Assistant instance, including port if needed.</small>
-                                </div>
-                                <div class="form-group">
-                                    <label for="haToken" class="form-label">Long-Lived Access Token</label>
-                                    <input type="password" class="form-control" id="haToken" placeholder="Your long-lived access token">
-                                    <small class="form-text text-muted">Create a long-lived access token in your Home Assistant profile.</small>
-                                </div>
-                                <button type="submit" class="btn btn-primary">Save and Connect</button>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-
                     <div class="settings-grid">
                         <div class="setting-card">
                             <div class="setting-header">
@@ -927,5 +850,4 @@
         });
     </script>
 </body>
-    <script src="/static/modern-script.js"></script>
 </html>

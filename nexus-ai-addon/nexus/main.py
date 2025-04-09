@@ -17,6 +17,7 @@ from nexus.ha_api import HomeAssistantAPI
 from nexus.calendar import GoogleCalendar
 from nexus.voice.stt import SpeechToText
 from nexus.voice.tts import TextToSpeech
+from nexus.tools.automation import AutomationTool
 
 # Configure logging
 log_level = os.getenv("LOG_LEVEL", "info").upper()
@@ -102,6 +103,9 @@ agent = NexusAgent(
     stt=stt,
     tts=tts
 )
+
+# Initialize the automation tool
+automation_tool = AutomationTool(ha_api)
 
 # Create FastAPI app
 app = FastAPI(
@@ -259,6 +263,133 @@ async def synthesize_speech(request: Request):
         raise
     except Exception as e:
         logger.error(f"Error synthesizing speech: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Define model for HA configuration
+class HAConfigRequest(BaseModel):
+    url: str
+    token: str
+
+# Define model for creating automations
+class AutomationRequest(BaseModel):
+    name: str
+    triggers: List[Dict[str, Any]]
+    actions: List[Dict[str, Any]]
+    conditions: Optional[List[Dict[str, Any]]] = None
+
+@app.post("/ha/configure")
+async def configure_home_assistant(request: HAConfigRequest):
+    """Configure the Home Assistant API connection."""
+    try:
+        logger.info(f"Configuring Home Assistant API with URL: {request.url}")
+        ha_api.configure(url=request.url, token=request.token)
+        
+        # Test the connection
+        connection_status = await ha_api.check_connection()
+        
+        if connection_status.get("connected", False):
+            # Save the configuration to memory for persistence
+            memory_manager.save_preference("ha_url", request.url)
+            # Don't save the token directly for security; use a hash or other mechanism if needed
+            memory_manager.save_preference("ha_configured", "true")
+            
+            return {"status": "configured", "connection": connection_status}
+        else:
+            return {"status": "error", "connection": connection_status}
+    except Exception as e:
+        logger.error(f"Error configuring Home Assistant: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/ha/status")
+async def check_home_assistant_status():
+    """Check the status of the Home Assistant connection."""
+    try:
+        connection_status = await ha_api.check_connection()
+        token_info = await ha_api.get_token_info()
+        
+        configured = memory_manager.get_preference("ha_configured", "false") == "true"
+        
+        return {
+            "configured": configured,
+            "connection": connection_status,
+            "token": token_info
+        }
+    except Exception as e:
+        logger.error(f"Error checking Home Assistant status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/ha/entities")
+async def get_home_assistant_entities(entity_type: Optional[str] = None):
+    """Get all entities from Home Assistant with optional filtering."""
+    try:
+        states = await ha_api.get_states()
+        
+        # Filter by entity type if specified
+        if entity_type:
+            filtered_states = {
+                entity_id: state for entity_id, state in states.items()
+                if entity_id.startswith(f"{entity_type}.")
+            }
+            return {"entities": filtered_states}
+        
+        return {"entities": states}
+    except Exception as e:
+        logger.error(f"Error getting Home Assistant entities: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/automations")
+async def get_automations():
+    """Get all automations from Home Assistant."""
+    try:
+        automations = await automation_tool.get_automations()
+        return {"automations": automations}
+    except Exception as e:
+        logger.error(f"Error getting automations: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/automations/trigger/{entity_id}")
+async def trigger_automation(entity_id: str):
+    """Trigger a specific automation."""
+    try:
+        result = await automation_tool.trigger_automation(entity_id)
+        return result
+    except Exception as e:
+        logger.error(f"Error triggering automation {entity_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/automations/toggle/{entity_id}")
+async def toggle_automation(entity_id: str, enable: bool = True):
+    """Enable or disable an automation."""
+    try:
+        result = await automation_tool.toggle_automation(entity_id, enable)
+        return result
+    except Exception as e:
+        logger.error(f"Error toggling automation {entity_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/automations/create")
+async def create_automation(request: AutomationRequest):
+    """Create a new automation in Home Assistant."""
+    try:
+        result = await automation_tool.create_routine(
+            name=request.name,
+            triggers=request.triggers,
+            actions=request.actions,
+            conditions=request.conditions
+        )
+        return result
+    except Exception as e:
+        logger.error(f"Error creating automation: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/automations/suggestions")
+async def get_automation_suggestions():
+    """Get AI-generated automation suggestions based on patterns."""
+    try:
+        suggestions = await automation_tool.suggest_automations(memory_manager)
+        return {"suggestions": suggestions}
+    except Exception as e:
+        logger.error(f"Error generating automation suggestions: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # Run the app if executed directly
