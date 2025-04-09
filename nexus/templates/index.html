@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus AI</title>
+    <!-- Bootstrap CSS (Replit dark theme) -->
+    <link href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link href="/static/styles.css" rel="stylesheet">
+    <!-- Feather Icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 col-lg-2 sidebar p-0">
+                <div class="d-flex flex-column flex-shrink-0 p-3 sidebar-content">
+                    <a href="/" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-decoration-none">
+                        <span class="fs-4">Nexus AI</span>
+                    </a>
+                    <hr>
+                    <ul class="nav nav-pills flex-column mb-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link active" id="chat-tab">
+                                <i data-feather="message-circle"></i> Chat
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" id="automations-tab">
+                                <i data-feather="zap"></i> Automations
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" id="memory-tab">
+                                <i data-feather="database"></i> Memory
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" id="settings-tab">
+                                <i data-feather="settings"></i> Settings
+                            </a>
+                        </li>
+                    </ul>
+                    <hr>
+                    <div class="status-indicator">
+                        <div class="d-flex align-items-center">
+                            <div class="indicator-dot connected"></div>
+                            <span class="ms-2">Connected to Home Assistant</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main content -->
+            <div class="col-md-9 ms-sm-auto col-lg-10 px-md-4 main-content">
+                <!-- Chat Section -->
+                <div id="chat-section" class="content-section active">
+                    <div class="chat-container">
+                        <div class="chat-messages" id="chat-messages">
+                            <div class="message system">
+                                <div class="message-content">
+                                    <p>Hello! I'm Nexus AI, your smart home assistant. How can I help you today?</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="chat-input-container">
+                            <form id="chat-form" class="d-flex">
+                                <input type="text" id="chat-input" class="form-control" placeholder="Ask me anything..." autocomplete="off">
+                                <button type="submit" class="btn btn-primary ms-2">
+                                    <i data-feather="send"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary ms-2" id="voice-input-btn">
+                                    <i data-feather="mic"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Automations Section -->
+                <div id="automations-section" class="content-section">
+                    <h2>Automations</h2>
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    Suggested Automations
+                                </div>
+                                <div class="card-body">
+                                    <div class="automation-suggestions" id="automation-suggestions">
+                                        <!-- Suggestions will be loaded here -->
+                                        <p class="text-muted">No automation suggestions available yet. Nexus AI will suggest automations as it learns your patterns.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    Active Automations
+                                </div>
+                                <div class="card-body">
+                                    <div class="active-automations" id="active-automations">
+                                        <!-- Active automations will be loaded here -->
+                                        <p class="text-muted">No active automations found.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Memory Section -->
+                <div id="memory-section" class="content-section">
+                    <h2>Memory</h2>
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    Saved Preferences
+                                </div>
+                                <div class="card-body">
+                                    <div id="preferences-list">
+                                        <!-- Preferences will be loaded here -->
+                                        <p class="text-muted">No preferences saved yet.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    Learned Information
+                                </div>
+                                <div class="card-body">
+                                    <div id="memory-list">
+                                        <!-- Memory items will be loaded here -->
+                                        <p class="text-muted">No memory items saved yet.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Settings Section -->
+                <div id="settings-section" class="content-section">
+                    <h2>Settings</h2>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    Home Assistant Connection
+                                </div>
+                                <div class="card-body">
+                                    <form id="ha-config-form">
+                                        <div class="mb-3">
+                                            <label for="ha-url" class="form-label">Home Assistant URL</label>
+                                            <input type="text" class="form-control" id="ha-url" placeholder="http://homeassistant.local:8123">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="ha-token" class="form-label">Long-Lived Access Token</label>
+                                            <input type="password" class="form-control" id="ha-token">
+                                            <div class="form-text">Create a long-lived access token in your Home Assistant profile.</div>
+                                        </div>
+                                        <button type="submit" class="btn btn-primary">Save Connection</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    AI Configuration
+                                </div>
+                                <div class="card-body">
+                                    <form id="ai-config-form">
+                                        <div class="mb-3">
+                                            <label for="openai-api-key" class="form-label">OpenAI API Key</label>
+                                            <input type="password" class="form-control" id="openai-api-key">
+                                        </div>
+                                        <div class="mb-3 form-check">
+                                            <input type="checkbox" class="form-check-input" id="voice-enabled">
+                                            <label class="form-check-label" for="voice-enabled">Enable Voice Input/Output</label>
+                                        </div>
+                                        <button type="submit" class="btn btn-primary">Save AI Settings</button>
+                                    </form>
+                                </div>
+                            </div>
+                            <div class="card">
+                                <div class="card-header">
+                                    Calendar Integration
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3 form-check">
+                                        <input type="checkbox" class="form-check-input" id="calendar-enabled">
+                                        <label class="form-check-label" for="calendar-enabled">Enable Google Calendar Integration</label>
+                                    </div>
+                                    <button type="button" class="btn btn-primary" id="calendar-auth-btn">Authorize Calendar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap & jQuery JS -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JS -->
+    <script src="/static/scripts.js"></script>
+    <!-- Initialize Feather Icons -->
+    <script>
+        feather.replace();
+    </script>
+</body>
+</html>

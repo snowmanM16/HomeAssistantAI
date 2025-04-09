@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus AI</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/modern.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <img src="https://cdn.iconscout.com/icon/free/png-256/free-ai-artificial-intelligence-robot-face-technology-30517.png" alt="Nexus AI" class="logo">
+                <h1 class="app-name">Nexus AI</h1>
+            </div>
+            <nav>
+                <ul class="nav-list">
+                    <li class="nav-item">
+                        <a href="#chat" class="nav-link active" data-section="chat">
+                            <i class="bi bi-chat-dots"></i>
+                            Chat
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#memory" class="nav-link" data-section="memory">
+                            <i class="bi bi-database"></i>
+                            Memory
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#automations" class="nav-link" data-section="automations">
+                            <i class="bi bi-magic"></i>
+                            Automations
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#calendar" class="nav-link" data-section="calendar">
+                            <i class="bi bi-calendar-event"></i>
+                            Calendar
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#settings" class="nav-link" data-section="settings">
+                            <i class="bi bi-gear"></i>
+                            Settings
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+
+        <!-- Header -->
+        <header class="app-header">
+            <button class="btn btn-icon menu-toggle" id="menuToggle">
+                <i class="bi bi-list"></i>
+            </button>
+            <h2 class="page-title" id="pageTitle">Chat</h2>
+            <div class="header-actions">
+                <button class="btn btn-icon" id="refreshBtn" title="Refresh">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Chat Section -->
+            <section id="chatSection" class="section-content active">
+                <div class="chat-container">
+                    <div class="chat-messages" id="chatMessages">
+                        <!-- Chat messages will be added here -->
+                        <div class="message system-message">
+                            <div class="message-content">Hello! I'm Nexus AI, your Home Assistant companion. How can I help you today?</div>
+                            <div class="message-time">Today at 9:00 AM</div>
+                        </div>
+                    </div>
+                    <div class="chat-input-container">
+                        <textarea class="chat-input" id="messageInput" placeholder="Type your message..." rows="1"></textarea>
+                        <div class="chat-actions">
+                            <button class="btn btn-icon" id="micBtn" title="Voice input">
+                                <i class="bi bi-mic"></i>
+                            </button>
+                            <button class="btn btn-primary btn-icon" id="sendBtn" title="Send message">
+                                <i class="bi bi-send"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Memory Section -->
+            <section id="memorySection" class="section-content">
+                <div class="card memory-search">
+                    <div class="card-header">
+                        <h3 class="card-title">Search Memory</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <input type="text" class="form-control" id="memorySearchInput" placeholder="Search for memories...">
+                        </div>
+                        <button class="btn btn-primary" id="memorySearchBtn">
+                            <i class="bi bi-search"></i> Search
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Memory Results</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="memory-results" id="memoryResults">
+                            <!-- Memory results will be added here -->
+                            <div class="memory-item">
+                                <div class="memory-key">bedroom_temperature_preference</div>
+                                <div class="memory-value">I prefer to keep my bedroom at 68 degrees at night and 72 degrees during the day.</div>
+                                <div class="memory-actions">
+                                    <button class="btn btn-secondary btn-sm">Edit</button>
+                                    <button class="btn btn-danger btn-sm">Delete</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Add to Memory</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label for="memoryKey" class="form-label">Key</label>
+                            <input type="text" class="form-control" id="memoryKey" placeholder="Enter memory key">
+                        </div>
+                        <div class="form-group">
+                            <label for="memoryValue" class="form-label">Value</label>
+                            <textarea class="form-control" id="memoryValue" placeholder="Enter memory value"></textarea>
+                        </div>
+                        <button class="btn btn-primary" id="memorySaveBtn">Save</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Calendar Section -->
+            <!-- Automations Section -->
+            <section id="automationsSection" class="section-content">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">AI-Generated Automation Suggestions</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="automation-suggestions" id="automationSuggestions">
+                            <div class="suggestion-item">
+                                <div class="suggestion-details">
+                                    <div class="suggestion-title">No automation suggestions yet</div>
+                                    <div class="suggestion-description">Suggestions will appear when Nexus AI detects patterns in your smart home usage.</div>
+                                </div>
+                                <div class="suggestion-actions">
+                                    <button class="btn btn-primary btn-sm" disabled>Apply</button>
+                                </div>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary" id="refreshSuggestionsBtn">
+                            <i class="bi bi-arrow-repeat"></i> Generate Suggestions
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Current Automations</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="automation-list" id="automationList">
+                            <!-- Automation list will be populated here -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Create Custom Automation</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label for="automationName" class="form-label">Name</label>
+                            <input type="text" class="form-control" id="automationName" placeholder="Enter automation name">
+                        </div>
+                        <div class="form-group">
+                            <label for="automationDescription" class="form-label">Description</label>
+                            <textarea class="form-control" id="automationDescription" placeholder="Describe what this automation should do"></textarea>
+                        </div>
+                        <button class="btn btn-primary" id="createFromDescriptionBtn">Create with AI</button>
+                    </div>
+                </div>
+            </section>
+
+            <section id="calendarSection" class="section-content">
+                <div class="calendar-container">
+                    <div class="calendar-header">
+                        <h3 class="calendar-title">Today's Events</h3>
+                        <div class="calendar-nav">
+                            <button class="btn btn-secondary btn-sm" id="prevBtn">
+                                <i class="bi bi-chevron-left"></i>
+                            </button>
+                            <button class="btn btn-secondary btn-sm" id="nextBtn">
+                                <i class="bi bi-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <ul class="event-list" id="eventList">
+                        <!-- Events will be added here -->
+                        <li class="event-item">
+                            <div class="event-time">9:00 AM - 10:00 AM</div>
+                            <div class="event-details">
+                                <div class="event-title">Weekly Team Meeting</div>
+                                <div class="event-location">Conference Room A</div>
+                            </div>
+                        </li>
+                        <li class="event-item">
+                            <div class="event-time">2:30 PM - 3:30 PM</div>
+                            <div class="event-details">
+                                <div class="event-title">Project Review</div>
+                                <div class="event-location">Virtual Meeting</div>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="card" id="calendarAuthCard">
+                    <div class="card-header">
+                        <h3 class="card-title">Google Calendar Authentication</h3>
+                    </div>
+                    <div class="card-body">
+                        <p>To connect to your Google Calendar, please complete the authentication process.</p>
+                        <div class="form-group">
+                            <label for="authCode" class="form-label">Authorization Code</label>
+                            <input type="text" class="form-control" id="authCode" placeholder="Enter authorization code">
+                        </div>
+                        <button class="btn btn-primary" id="authSubmitBtn">Submit</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Settings Section -->
+            <section id="settingsSection" class="section-content">
+                <div class="settings-section">
+                    <h3 class="settings-title">Connection Status</h3>
+                    <div class="settings-grid">
+                        <div class="setting-card">
+                            <div class="setting-header">
+                                <span class="setting-name">OpenAI API</span>
+                            </div>
+                            <div class="status-indicator" id="openaiStatus">
+                                <span class="status-dot connected"></span>
+                                <span>Connected</span>
+                            </div>
+                            <p class="setting-description">Status of the connection to OpenAI's GPT-4o model.</p>
+                        </div>
+                        <div class="setting-card">
+                            <div class="setting-header">
+                                <span class="setting-name">Home Assistant</span>
+                            </div>
+                            <div class="status-indicator" id="haStatus">
+                                <span class="status-dot connected"></span>
+                                <span>Connected</span>
+                            </div>
+                            <p class="setting-description">Status of the connection to your Home Assistant instance.</p>
+                        </div>
+                        <div class="setting-card">
+                            <div class="setting-header">
+                                <span class="setting-name">Google Calendar</span>
+                            </div>
+                            <div class="status-indicator" id="calendarStatus">
+                                <span class="status-dot pending"></span>
+                                <span>Not Authorized</span>
+                            </div>
+                            <p class="setting-description">Status of the connection to Google Calendar API.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3 class="settings-title">Features</h3>
+                <div class="settings-section">
+                    <h3 class="settings-title">Home Assistant Integration</h3>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Configure Home Assistant Connection</h3>
+                        </div>
+                        <div class="card-body">
+                            <form id="haConfigForm">
+                                <div class="form-group">
+                                    <label for="haUrl" class="form-label">Home Assistant URL</label>
+                                    <input type="text" class="form-control" id="haUrl" placeholder="http://homeassistant.local:8123">
+                                    <small class="form-text text-muted">The URL of your Home Assistant instance, including port if needed.</small>
+                                </div>
+                                <div class="form-group">
+                                    <label for="haToken" class="form-label">Long-Lived Access Token</label>
+                                    <input type="password" class="form-control" id="haToken" placeholder="Your long-lived access token">
+                                    <small class="form-text text-muted">Create a long-lived access token in your Home Assistant profile.</small>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Save and Connect</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                    <div class="settings-grid">
+                        <div class="setting-card">
+                            <div class="setting-header">
+                                <span class="setting-name">Voice Processing</span>
+                                <label class="setting-toggle">
+                                    <input type="checkbox" class="toggle-input" id="voiceToggle">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <p class="setting-description">Enable speech-to-text and text-to-speech capabilities.</p>
+                        </div>
+                        <div class="setting-card">
+                            <div class="setting-header">
+                                <span class="setting-name">Memory Retention</span>
+                                <label class="setting-toggle">
+                                    <input type="checkbox" class="toggle-input" id="memoryToggle" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <p class="setting-description">Enable long-term memory and context awareness.</p>
+                        </div>
+                        <div class="setting-card">
+                            <div class="setting-header">
+                                <span class="setting-name">Calendar Integration</span>
+                                <label class="setting-toggle">
+                                    <input type="checkbox" class="toggle-input" id="calendarToggle">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <p class="setting-description">Enable Google Calendar integration for event access and management.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3 class="settings-title">About</h3>
+                    <div class="card">
+                        <div class="card-body">
+                            <p><strong>Nexus AI</strong> Version 0.1.0</p>
+                            <p>An intelligent assistant add-on for Home Assistant that provides natural language interaction, smart home control, memory, and calendar integration.</p>
+                            <p>Powered by OpenAI GPT-4o</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div class="overlay" id="overlay"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Elements
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlay');
+            const menuToggle = document.getElementById('menuToggle');
+            const navLinks = document.querySelectorAll('.nav-link');
+            const pageTitle = document.getElementById('pageTitle');
+            const sections = document.querySelectorAll('.section-content');
+            const messageInput = document.getElementById('messageInput');
+            const sendBtn = document.getElementById('sendBtn');
+            const micBtn = document.getElementById('micBtn');
+            const chatMessages = document.getElementById('chatMessages');
+            const memorySearchBtn = document.getElementById('memorySearchBtn');
+            const memorySearchInput = document.getElementById('memorySearchInput');
+            const memoryResults = document.getElementById('memoryResults');
+            const memorySaveBtn = document.getElementById('memorySaveBtn');
+            const memoryKey = document.getElementById('memoryKey');
+            const memoryValue = document.getElementById('memoryValue');
+            const eventList = document.getElementById('eventList');
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+            const calendarAuthCard = document.getElementById('calendarAuthCard');
+            const authSubmitBtn = document.getElementById('authSubmitBtn');
+            const authCode = document.getElementById('authCode');
+            const openaiStatus = document.getElementById('openaiStatus');
+            const haStatus = document.getElementById('haStatus');
+            const calendarStatus = document.getElementById('calendarStatus');
+            const voiceToggle = document.getElementById('voiceToggle');
+            const memoryToggle = document.getElementById('memoryToggle');
+            const calendarToggle = document.getElementById('calendarToggle');
+            
+            // Variables
+            let mediaRecorder = null;
+            let audioChunks = [];
+            let isRecording = false;
+            
+            // Mobile menu toggle
+            menuToggle.addEventListener('click', function() {
+                sidebar.classList.toggle('open');
+                overlay.classList.toggle('open');
+            });
+            
+            overlay.addEventListener('click', function() {
+                sidebar.classList.remove('open');
+                overlay.classList.remove('open');
+            });
+            
+            // Navigation
+            navLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    // Update active link
+                    navLinks.forEach(l => l.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Update page title
+                    pageTitle.textContent = this.textContent.trim();
+                    
+                    // Show appropriate section
+                    const sectionId = this.getAttribute('data-section') + 'Section';
+                    sections.forEach(section => {
+                        section.classList.remove('active');
+                        if (section.id === sectionId) {
+                            section.classList.add('active');
+                        }
+                    });
+                    
+                    // Close mobile menu
+                    sidebar.classList.remove('open');
+                    overlay.classList.remove('open');
+                    
+                    // Load section-specific data
+                    if (sectionId === 'calendarSection') {
+                        loadCalendarEvents();
+                    } else if (sectionId === 'settingsSection') {
+                        checkStatus();
+                    }
+                });
+            });
+            
+            // Auto-resize textarea
+            messageInput.addEventListener('input', function() {
+                this.style.height = 'auto';
+                this.style.height = (this.scrollHeight) + 'px';
+            });
+            
+            // Send message function
+            function sendMessage() {
+                const message = messageInput.value.trim();
+                if (message) {
+                    // Add user message to chat
+                    addMessage(message, 'user');
+                    
+                    // Clear input field
+                    messageInput.value = '';
+                    messageInput.style.height = 'auto';
+                    
+                    // Show typing indicator
+                    showTypingIndicator();
+                    
+                    // Send to the API
+                    fetch('/ask', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ prompt: message })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        // Remove typing indicator
+                        removeTypingIndicator();
+                        
+                        // Add response to chat
+                        addMessage(data.response, 'system');
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        removeTypingIndicator();
+                        addMessage('Sorry, there was an error processing your request.', 'system');
+                    });
+                }
+            }
+            
+            // Send button click
+            sendBtn.addEventListener('click', sendMessage);
+            
+            // Send on Enter key (but allow Shift+Enter for new line)
+            messageInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+            
+            // Add message to chat
+            function addMessage(text, sender) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${sender}-message`;
+                
+                // Support markdown-style formatting
+                text = text
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                    .replace(/`(.*?)`/g, '<code>$1</code>')
+                    .replace(/\n/g, '<br>');
+                
+                const now = new Date();
+                const timeStr = `Today at ${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`;
+                
+                messageDiv.innerHTML = `
+                    <div class="message-content">${text}</div>
+                    <div class="message-time">${timeStr}</div>
+                `;
+                
+                chatMessages.appendChild(messageDiv);
+                
+                // Scroll to bottom
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+            
+            // Show typing indicator
+            function showTypingIndicator() {
+                const indicatorDiv = document.createElement('div');
+                indicatorDiv.className = 'typing-indicator';
+                indicatorDiv.id = 'typingIndicator';
+                
+                indicatorDiv.innerHTML = `
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                `;
+                
+                chatMessages.appendChild(indicatorDiv);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+            
+            // Remove typing indicator
+            function removeTypingIndicator() {
+                const indicator = document.getElementById('typingIndicator');
+                if (indicator) {
+                    indicator.remove();
+                }
+            }
+            
+            // Voice recording
+            micBtn.addEventListener('click', function() {
+                if (isRecording) {
+                    stopRecording();
+                    this.innerHTML = '<i class="bi bi-mic"></i>';
+                    this.classList.remove('btn-danger');
+                } else {
+                    startRecording();
+                    this.innerHTML = '<i class="bi bi-mic-mute"></i>';
+                    this.classList.add('btn-danger');
+                }
+            });
+            
+            function startRecording() {
+                navigator.mediaDevices.getUserMedia({ audio: true })
+                    .then(stream => {
+                        mediaRecorder = new MediaRecorder(stream);
+                        audioChunks = [];
+                        
+                        mediaRecorder.addEventListener('dataavailable', event => {
+                            audioChunks.push(event.data);
+                        });
+                        
+                        mediaRecorder.addEventListener('stop', () => {
+                            const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                            
+                            // Show a temporary message
+                            addMessage('Processing audio...', 'system');
+                            
+                            // Send to the API for transcription
+                            fetch('/voice/transcribe', {
+                                method: 'POST',
+                                body: audioBlob
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                // Remove the processing message
+                                chatMessages.removeChild(chatMessages.lastChild);
+                                
+                                if (data.text) {
+                                    // Add the transcribed text as a user message
+                                    addMessage(data.text, 'user');
+                                    
+                                    // Now send the transcribed text to the AI
+                                    showTypingIndicator();
+                                    
+                                    fetch('/ask', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ prompt: data.text })
+                                    })
+                                    .then(response => response.json())
+                                    .then(data => {
+                                        removeTypingIndicator();
+                                        addMessage(data.response, 'system');
+                                    })
+                                    .catch(error => {
+                                        console.error('Error:', error);
+                                        removeTypingIndicator();
+                                        addMessage('Sorry, there was an error processing your request.', 'system');
+                                    });
+                                } else {
+                                    addMessage('Sorry, I couldn\'t understand the audio.', 'system');
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error:', error);
+                                // Remove the processing message
+                                chatMessages.removeChild(chatMessages.lastChild);
+                                addMessage('Sorry, there was an error processing the audio.', 'system');
+                            });
+                            
+                            stream.getTracks().forEach(track => track.stop());
+                        });
+                        
+                        mediaRecorder.start();
+                        isRecording = true;
+                    })
+                    .catch(error => {
+                        console.error('Error accessing microphone:', error);
+                        addMessage('Sorry, I couldn\'t access your microphone.', 'system');
+                    });
+            }
+            
+            function stopRecording() {
+                if (mediaRecorder && isRecording) {
+                    mediaRecorder.stop();
+                    isRecording = false;
+                }
+            }
+            
+            // Memory search
+            memorySearchBtn.addEventListener('click', function() {
+                const query = memorySearchInput.value.trim();
+                if (query) {
+                    memoryResults.innerHTML = '<div class="loading-message">Searching...</div>';
+                    
+                    fetch(`/memory/search?query=${encodeURIComponent(query)}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            memoryResults.innerHTML = '';
+                            
+                            if (data.results && data.results.length > 0) {
+                                data.results.forEach(item => {
+                                    const memoryItem = document.createElement('div');
+                                    memoryItem.className = 'memory-item';
+                                    
+                                    memoryItem.innerHTML = `
+                                        <div class="memory-key">${item.key}</div>
+                                        <div class="memory-value">${item.value}</div>
+                                        <div class="memory-actions">
+                                            <button class="btn btn-secondary btn-sm memory-edit" data-key="${item.key}">Edit</button>
+                                            <button class="btn btn-danger btn-sm memory-delete" data-key="${item.key}">Delete</button>
+                                        </div>
+                                    `;
+                                    
+                                    memoryResults.appendChild(memoryItem);
+                                });
+                                
+                                // Add event listeners to the new buttons
+                                setupMemoryActions();
+                            } else {
+                                memoryResults.innerHTML = '<div class="no-results">No results found</div>';
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error searching memory:', error);
+                            memoryResults.innerHTML = '<div class="error-message">Error searching memory</div>';
+                        });
+                }
+            });
+            
+            // Save to memory
+            memorySaveBtn.addEventListener('click', function() {
+                const key = memoryKey.value.trim();
+                const value = memoryValue.value.trim();
+                
+                if (key && value) {
+                    memorySaveBtn.disabled = true;
+                    memorySaveBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Saving...';
+                    
+                    fetch('/memory', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ key, value })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        memoryKey.value = '';
+                        memoryValue.value = '';
+                        
+                        memorySaveBtn.disabled = false;
+                        memorySaveBtn.innerHTML = 'Save';
+                        
+                        if (data.status === 'saved') {
+                            // Show a success message
+                            alert('Memory saved successfully!');
+                            
+                            // Add the new item to the results
+                            const memoryItem = document.createElement('div');
+                            memoryItem.className = 'memory-item';
+                            
+                            memoryItem.innerHTML = `
+                                <div class="memory-key">${key}</div>
+                                <div class="memory-value">${value}</div>
+                                <div class="memory-actions">
+                                    <button class="btn btn-secondary btn-sm memory-edit" data-key="${key}">Edit</button>
+                                    <button class="btn btn-danger btn-sm memory-delete" data-key="${key}">Delete</button>
+                                </div>
+                            `;
+                            
+                            memoryResults.insertBefore(memoryItem, memoryResults.firstChild);
+                            
+                            // Add event listeners to the new buttons
+                            setupMemoryActions();
+                        } else {
+                            alert('Error saving memory');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error saving memory:', error);
+                        memorySaveBtn.disabled = false;
+                        memorySaveBtn.innerHTML = 'Save';
+                        alert('Error saving memory');
+                    });
+                } else {
+                    alert('Please enter both key and value');
+                }
+            });
+            
+            // Setup memory actions (edit/delete buttons)
+            function setupMemoryActions() {
+                document.querySelectorAll('.memory-edit').forEach(button => {
+                    button.addEventListener('click', function() {
+                        const key = this.getAttribute('data-key');
+                        const item = this.closest('.memory-item');
+                        const value = item.querySelector('.memory-value').textContent;
+                        
+                        memoryKey.value = key;
+                        memoryValue.value = value;
+                        
+                        // Scroll to the form
+                        memorySaveBtn.scrollIntoView({ behavior: 'smooth' });
+                    });
+                });
+                
+                document.querySelectorAll('.memory-delete').forEach(button => {
+                    button.addEventListener('click', function() {
+                        if (confirm('Are you sure you want to delete this memory?')) {
+                            const key = this.getAttribute('data-key');
+                            const item = this.closest('.memory-item');
+                            
+                            // TODO: Implement delete API
+                            // For now, just remove the item from the DOM
+                            item.remove();
+                        }
+                    });
+                });
+            }
+            
+            // Load calendar events
+            function loadCalendarEvents() {
+                eventList.innerHTML = '<li class="event-item loading">Loading events...</li>';
+                
+                fetch('/calendar')
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Calendar API not available');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        eventList.innerHTML = '';
+                        calendarAuthCard.style.display = 'none';
+                        
+                        if (data.events && data.events.length > 0) {
+                            data.events.forEach(event => {
+                                const eventItem = document.createElement('li');
+                                eventItem.className = 'event-item';
+                                
+                                eventItem.innerHTML = `
+                                    <div class="event-time">${event.time}</div>
+                                    <div class="event-details">
+                                        <div class="event-title">${event.event}</div>
+                                        <div class="event-location">${event.location || 'No location specified'}</div>
+                                    </div>
+                                `;
+                                
+                                eventList.appendChild(eventItem);
+                            });
+                        } else {
+                            eventList.innerHTML = '<li class="event-item no-events">No events scheduled for today</li>';
+                        }
+                        
+                        // Update the calendar status
+                        calendarStatus.innerHTML = '<span class="status-dot connected"></span><span>Connected</span>';
+                    })
+                    .catch(error => {
+                        console.error('Error loading calendar:', error);
+                        eventList.innerHTML = '<li class="event-item error">Error loading calendar events</li>';
+                        
+                        // Show auth card if needed
+                        if (error.message === 'Calendar API not available') {
+                            calendarAuthCard.style.display = 'block';
+                            calendarStatus.innerHTML = '<span class="status-dot disconnected"></span><span>Not Authorized</span>';
+                        }
+                    });
+            }
+            
+            // Calendar auth
+            authSubmitBtn.addEventListener('click', function() {
+                const code = authCode.value.trim();
+                if (code) {
+                    authSubmitBtn.disabled = true;
+                    authSubmitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Submitting...';
+                    
+                    // TODO: Implement calendar auth API
+                    setTimeout(() => {
+                        authSubmitBtn.disabled = false;
+                        authSubmitBtn.innerHTML = 'Submit';
+                        authCode.value = '';
+                        calendarAuthCard.style.display = 'none';
+                        
+                        // Simulate successful connection
+                        calendarStatus.innerHTML = '<span class="status-dot connected"></span><span>Connected</span>';
+                        loadCalendarEvents();
+                    }, 2000);
+                } else {
+                    alert('Please enter an authorization code');
+                }
+            });
+            
+            // Check status
+            function checkStatus() {
+                // Check OpenAI status
+                fetch('/ask', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: 'test' })
+                })
+                .then(response => {
+                    if (response.ok) {
+                        openaiStatus.innerHTML = '<span class="status-dot connected"></span><span>Connected</span>';
+                    } else {
+                        openaiStatus.innerHTML = '<span class="status-dot disconnected"></span><span>Error</span>';
+                    }
+                })
+                .catch(() => {
+                    openaiStatus.innerHTML = '<span class="status-dot disconnected"></span><span>Not configured</span>';
+                });
+                
+                // Check Home Assistant status
+                fetch('/health')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'ok') {
+                            haStatus.innerHTML = '<span class="status-dot connected"></span><span>Connected</span>';
+                        } else {
+                            haStatus.innerHTML = '<span class="status-dot disconnected"></span><span>Error</span>';
+                        }
+                    })
+                    .catch(() => {
+                        haStatus.innerHTML = '<span class="status-dot disconnected"></span><span>Not connected</span>';
+                    });
+                
+                // Check calendar status
+                fetch('/calendar')
+                    .then(response => {
+                        if (response.ok) {
+                            calendarStatus.innerHTML = '<span class="status-dot connected"></span><span>Connected</span>';
+                            calendarToggle.checked = true;
+                        } else {
+                            calendarStatus.innerHTML = '<span class="status-dot pending"></span><span>Not Authorized</span>';
+                            calendarToggle.checked = false;
+                        }
+                    })
+                    .catch(() => {
+                        calendarStatus.innerHTML = '<span class="status-dot disconnected"></span><span>Not configured</span>';
+                        calendarToggle.checked = false;
+                    });
+                
+                // Check voice status
+                fetch('/voice/transcribe', { method: 'HEAD' })
+                    .then(response => {
+                        voiceToggle.checked = response.ok;
+                    })
+                    .catch(() => {
+                        voiceToggle.checked = false;
+                    });
+            }
+            
+            // Initialize
+            setupMemoryActions();
+            
+            // Initialize tooltip for buttons with title attribute
+            document.querySelectorAll('[title]').forEach(el => {
+                const title = el.getAttribute('title');
+                
+                el.addEventListener('mouseenter', () => {
+                    const tooltip = document.createElement('div');
+                    tooltip.className = 'tooltip';
+                    tooltip.textContent = title;
+                    
+                    document.body.appendChild(tooltip);
+                    
+                    const rect = el.getBoundingClientRect();
+                    tooltip.style.top = `${rect.top - tooltip.offsetHeight - 10}px`;
+                    tooltip.style.left = `${rect.left + rect.width / 2 - tooltip.offsetWidth / 2}px`;
+                    tooltip.style.opacity = '1';
+                });
+                
+                el.addEventListener('mouseleave', () => {
+                    const tooltip = document.querySelector('.tooltip');
+                    if (tooltip) {
+                        tooltip.remove();
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+    <script src="/static/modern-script.js"></script>
+</html>

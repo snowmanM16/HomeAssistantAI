@@ -1,0 +1,44 @@
+#!/usr/bin/with-contenv bashio
+# ==============================================================================
+# Start Nexus AI service
+# s6-overlay docs: https://github.com/just-containers/s6-overlay
+# ==============================================================================
+
+bashio::log.info "Starting Nexus AI..."
+
+cd /app
+
+# Set environment from options
+export LOG_LEVEL=$(bashio::config 'log_level')
+export DATA_DIR=$(bashio::config 'data_directory')
+export OPENAI_API_KEY=$(bashio::config 'openai_api_key')
+export USE_LOCAL_MODEL=$(bashio::config 'use_local_model')
+export LOCAL_MODEL_PATH=$(bashio::config 'local_model_path')
+export MEMORY_PERSISTENCE=$(bashio::config 'memory_persistence')
+export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/nexus"
+export SUPERVISOR_TOKEN="${SUPERVISOR_TOKEN}"
+
+# Create data directory if it doesn't exist
+mkdir -p "$DATA_DIR"
+
+# Wait for PostgreSQL to be ready
+bashio::log.info "Waiting for PostgreSQL..."
+until pg_isready -h localhost -p 5432 -U postgres; do
+    bashio::log.info "PostgreSQL not ready yet..."
+    sleep 2
+done
+
+# Create database if it doesn't exist
+bashio::log.info "Initializing database..."
+if ! psql -h localhost -p 5432 -U postgres -lqt | cut -d \| -f 1 | grep -qw nexus; then
+    bashio::log.info "Creating nexus database..."
+    psql -h localhost -p 5432 -U postgres -c "CREATE DATABASE nexus"
+fi
+
+# Initialize database tables
+bashio::log.info "Setting up database tables..."
+python3 -m nexus.database.init
+
+# Start the server
+bashio::log.info "Starting web server..."
+exec python3 -m uvicorn nexus.main:app --host 0.0.0.0 --port 5000

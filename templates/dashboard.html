@@ -1,0 +1,214 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - Nexus AI{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Ask Nexus AI</h5>
+                <div class="mb-3">
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="queryInput" placeholder="Ask me anything about your home...">
+                        <button class="btn btn-primary" id="askButton">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-send" viewBox="0 0 16 16">
+                                <path d="M15.854.146a.5.5 0 0 1 .11.54l-5.819 14.547a.75.75 0 0 1-1.329.124l-3.178-4.995L.643 7.184a.75.75 0 0 1 .124-1.33L15.314.037a.5.5 0 0 1 .54.11ZM6.636 10.07l2.761 4.338L14.13 2.576 6.636 10.07Zm6.787-8.201L1.591 6.602l4.339 2.76 7.494-7.493Z"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div id="responseContainer" class="border rounded p-3 mb-3 d-none">
+                    <div id="responseText"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                Important Entities
+            </div>
+            <div class="card-body">
+                <div id="importantEntities">
+                    <p class="text-center text-muted">Loading entities...</p>
+                </div>
+            </div>
+            <div class="card-footer">
+                <a href="/entities" class="btn btn-sm btn-outline-secondary">View all entities</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                Suggested Automations
+            </div>
+            <div class="card-body">
+                <div id="suggestedAutomations">
+                    <p class="text-center text-muted">Loading suggestions...</p>
+                </div>
+            </div>
+            <div class="card-footer">
+                <a href="/automations" class="btn btn-sm btn-outline-secondary">View all automations</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                Recent Patterns Detected
+            </div>
+            <div class="card-body">
+                <div id="recentPatterns">
+                    <p class="text-center text-muted">Loading patterns...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // Load important entities
+        fetch('/api/entities?important_only=true')
+            .then(response => response.json())
+            .then(data => {
+                const container = document.getElementById('importantEntities');
+                if (data.entities && data.entities.length > 0) {
+                    let html = '<div class="list-group">';
+                    data.entities.forEach(entity => {
+                        html += `
+                            <div class="list-group-item">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">${entity.friendly_name || entity.entity_id}</h6>
+                                    <small class="text-muted">${entity.domain}</small>
+                                </div>
+                                <p class="mb-1">${entity.last_state}</p>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = '<p class="text-center">No important entities found.</p>';
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching entities:', error);
+                document.getElementById('importantEntities').innerHTML = 
+                    '<p class="text-center text-danger">Error loading entities.</p>';
+            });
+            
+        // Load suggested automations
+        fetch('/api/automations?suggested_only=true')
+            .then(response => response.json())
+            .then(data => {
+                const container = document.getElementById('suggestedAutomations');
+                if (data.automations && data.automations.length > 0) {
+                    let html = '<ul class="list-group">';
+                    data.automations.forEach(automation => {
+                        html += `
+                            <li class="list-group-item">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">${automation.name}</h6>
+                                    <span class="badge bg-secondary">${(automation.confidence * 100).toFixed(0)}%</span>
+                                </div>
+                                <p class="mb-1">${automation.description || 'No description'}</p>
+                                <button class="btn btn-sm btn-primary mt-2">Accept</button>
+                                <button class="btn btn-sm btn-outline-secondary mt-2">Dismiss</button>
+                            </li>
+                        `;
+                    });
+                    html += '</ul>';
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = '<p class="text-center">No suggestions yet.</p>';
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching automations:', error);
+                document.getElementById('suggestedAutomations').innerHTML = 
+                    '<p class="text-center text-danger">Error loading suggestions.</p>';
+            });
+            
+        // Load recent patterns
+        fetch('/api/patterns?min_confidence=0.5')
+            .then(response => response.json())
+            .then(data => {
+                const container = document.getElementById('recentPatterns');
+                if (data.patterns && data.patterns.length > 0) {
+                    let html = '<div class="table-responsive"><table class="table table-striped">';
+                    html += '<thead><tr><th>Pattern</th><th>Type</th><th>Confidence</th><th>Detected</th></tr></thead><tbody>';
+                    data.patterns.forEach(pattern => {
+                        html += `
+                            <tr>
+                                <td>${pattern.name}</td>
+                                <td><span class="badge bg-info">${pattern.pattern_type}</span></td>
+                                <td>${(pattern.confidence * 100).toFixed(0)}%</td>
+                                <td>${pattern.times_detected} times</td>
+                            </tr>
+                        `;
+                    });
+                    html += '</tbody></table></div>';
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = '<p class="text-center">No patterns detected yet.</p>';
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching patterns:', error);
+                document.getElementById('recentPatterns').innerHTML = 
+                    '<p class="text-center text-danger">Error loading patterns.</p>';
+            });
+            
+        // Handle asking questions
+        const queryInput = document.getElementById('queryInput');
+        const askButton = document.getElementById('askButton');
+        const responseContainer = document.getElementById('responseContainer');
+        const responseText = document.getElementById('responseText');
+        
+        askButton.addEventListener('click', () => {
+            const query = queryInput.value.trim();
+            if (!query) return;
+            
+            // Show response container with loading message
+            responseContainer.classList.remove('d-none');
+            responseText.innerHTML = '<div class="d-flex justify-content-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+            
+            // Make the API request
+            fetch('/api/ask', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ prompt: query, context: {} })
+            })
+            .then(response => response.json())
+            .then(data => {
+                responseText.textContent = data.response || 'No response received.';
+            })
+            .catch(error => {
+                console.error('Error asking query:', error);
+                responseText.innerHTML = '<p class="text-danger">Error processing your request. Please try again.</p>';
+            });
+        });
+        
+        // Allow pressing Enter to send questions
+        queryInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                askButton.click();
+            }
+        });
+    });
+</script>
+{% endblock %}

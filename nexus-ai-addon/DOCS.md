@@ -1,113 +1,101 @@
-# Nexus AI Add-on for Home Assistant
-
-## Overview
-
-Nexus AI is an intelligent AI assistant for Home Assistant that enhances your smart home with advanced pattern recognition and automation capabilities. It uses artificial intelligence to learn from your habits and preferences, suggest automations, and provide natural language interaction with your smart home.
-
-## Features
-
-- 🤖 Natural language interface for controlling your smart home
-- 🔍 Pattern recognition to detect habits and preferences
-- ⚡ Automated suggestion and creation of Home Assistant automations
-- 🧠 Long-term memory storage for user preferences and habits
-- 📅 Google Calendar integration for context-aware assistance
-- 🔄 Self-learning capabilities that improve over time
+# Home Assistant Add-on: Nexus AI
 
 ## Installation
 
-### Add-on Installation
+Follow these steps to get the add-on installed on your system:
 
-1. Navigate to your Home Assistant instance.
-2. Go to **Settings** → **Add-ons** → **Add-on Store**.
-3. Click the three dots in the upper right corner and select **Repositories**.
-4. Add the URL `https://github.com/yourusername/nexus-ai-addon` and click **Add**.
-5. Find "Nexus AI" in the list of add-ons and click on it.
-6. Click **Install** and wait for the installation to complete.
-7. Configure the add-on (see Configuration section below).
-8. Start the add-on.
-9. Check the logs to make sure everything is working correctly.
+1. Navigate in your Home Assistant frontend to **Settings** -> **Add-ons** -> **Add-on Store**.
+2. Click the 3-dots menu in the upper right and select **Repositories**.
+3. Add the URL of this repository and click **Add**.
+4. Find the "Nexus AI" add-on and click it.
+5. Click on the "INSTALL" button.
+
+## How to use
+
+1. Set your OpenAI API key in the configuration (if using OpenAI).
+2. Start the add-on.
+3. Click the "OPEN WEB UI" button to open the Nexus AI web interface.
+4. In the Nexus AI web interface, configure your Home Assistant connection using a long-lived access token.
+
+### OpenAI API Key
+
+To use the cloud-based AI features, you need an OpenAI API key:
+
+1. Create an account or log in at [OpenAI's platform](https://platform.openai.com/)
+2. Navigate to the [API keys section](https://platform.openai.com/api-keys)
+3. Create a new API key
+4. Copy the key and paste it in the add-on configuration
+
+### Local AI Models (Optional)
+
+If you prefer not to use OpenAI, you can enable the local model option in the configuration.
 
 ## Configuration
 
-### Add-on Configuration Options
+Example add-on configuration:
 
-| Option | Description |
-|--------|-------------|
-| `log_level` | The log level for the add-on (trace/debug/info/warning/error/critical) |
-| `use_local_llm` | Whether to use a local language model instead of OpenAI |
-| `local_llm_url` | URL to a local LLM server (like Llama) if `use_local_llm` is true |
-| `data_retention_days` | Number of days to keep historical data (1-365) |
-| `openai_api_key` | Optional: Your OpenAI API key for AI processing |
+```yaml
+log_level: info
+openai_api_key: sk-abcdefghijklmnopqrstuvwxyz1234567890
+use_local_model: false
+local_model_path: ""
+memory_persistence: true
+data_directory: /data/nexus
+```
 
-### Initial Setup
+### Option: `log_level`
 
-After installing the add-on:
+The `log_level` option controls the level of log output by the add-on and can
+be changed to be more or less verbose, which might be useful when you are
+dealing with an unknown issue. Possible values are:
 
-1. Open the Nexus AI web interface (it will be available as a sidebar item).
-2. Go to the **Settings** tab.
-3. Configure your Home Assistant connection:
-   - The URL should be your internal Home Assistant URL (e.g., `http://homeassistant.local:8123`).
-   - Create a [Long-Lived Access Token](https://developers.home-assistant.io/docs/auth_api/#long-lived-access-token) in your Home Assistant profile and enter it here.
-4. Configure AI settings:
-   - Enter your OpenAI API key if you want to use OpenAI's services.
-   - Alternative: Enable "Use Local LLM" in the add-on configuration if you prefer local processing.
-5. (Optional) Set up Google Calendar integration for calendar-aware assistance.
+- `trace`: Show every detail, like all called internal functions.
+- `debug`: Shows detailed debug information.
+- `info`: Normal (usually) interesting events.
+- `warning`: Exceptional occurrences that are not errors.
+- `error`: Runtime errors that do not require immediate action.
+- `fatal`: Something went terribly wrong. Add-on becomes unusable.
 
-## Usage
+Please note that each level automatically includes log messages from a
+more severe level, e.g., `debug` also shows `info` messages. By default,
+the `log_level` is set to `info`, which is the recommended setting unless
+you are troubleshooting.
 
-### Chat Interface
+### Option: `openai_api_key`
 
-The main interface is a chat where you can interact with Nexus AI using natural language. Example commands:
+This option allows you to specify your OpenAI API key for cloud-based AI features.
+Leave empty if you're using a local model.
 
-- "Turn on the living room lights"
-- "Set the thermostat to 72 degrees"
-- "When does the sun set today?"
-- "Remember that I prefer the temperature at 68 degrees at night"
-- "Create an automation to turn off all lights when I leave home"
+### Option: `use_local_model`
 
-### Automation Management
+Set to `true` to use a local LLM instead of OpenAI's cloud services.
 
-Nexus AI will detect patterns in your usage and suggest automations. You can:
+### Option: `local_model_path`
 
-- View, accept, or dismiss suggested automations
-- Manage existing automations
-- Ask Nexus AI to create custom automations
+The path to your local model file when using a local model.
 
-### Memory Management
+### Option: `memory_persistence`
 
-Nexus AI maintains a memory of your preferences and important information:
+Enable or disable persistent memory storage. When enabled, Nexus AI will remember
+preferences and patterns between restarts.
 
-- View and edit stored memories
-- Manually add important information
-- Set user preferences that Nexus AI should remember
+### Option: `data_directory`
 
-## Troubleshooting
-
-### Connection Issues
-
-- Ensure your Home Assistant URL is correct and accessible from the add-on.
-- Verify your long-lived access token is valid and has the necessary permissions.
-- Check the add-on logs for any connection errors.
-
-### AI Processing Issues
-
-- If using OpenAI, check that your API key is valid and has sufficient credits.
-- If using a local LLM, ensure the LLM server is running and accessible.
-- Try adjusting the log level to "debug" for more detailed logs.
-
-### Database Issues
-
-- The add-on stores data in `/data/nexus`. If you're experiencing database issues, you can try resetting by stopping the add-on, renaming this folder, and starting again.
+The directory where Nexus AI stores its data. Default is `/data/nexus`.
 
 ## Support
 
-- Report issues on GitHub: [https://github.com/yourusername/nexus-ai-addon/issues](https://github.com/yourusername/nexus-ai-addon/issues)
-- Ask questions in the Home Assistant community forums
+Got questions?
 
-## Credits
+You have several options to get them answered:
 
-Nexus AI is developed and maintained by [Your Name].
+- The [Home Assistant Discord Chat Server][discord].
+- The Home Assistant [Community Forum][forum].
+- Join the [Reddit subreddit][reddit] in [/r/homeassistant][reddit]
 
-## License
+In case you've found an issue, please [open an issue on our GitHub][issue].
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+[discord]: https://discord.gg/c5DvZ4e
+[forum]: https://community.home-assistant.io
+[issue]: https://github.com/yourusername/nexus_ai/issues
+[reddit]: https://reddit.com/r/homeassistant

@@ -1,39 +1,45 @@
-ARG BUILD_FROM
-FROM $BUILD_FROM
+ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base:3.16
+FROM ${BUILD_FROM}
 
 # Set shell
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# Setup base
+# Install required system packages and PostgreSQL
 RUN apk add --no-cache \
     python3 \
     py3-pip \
+    py3-wheel \
     py3-psycopg2 \
     py3-cryptography \
     py3-aiohttp \
     py3-numpy \
-    postgresql-client
+    postgresql \
+    postgresql-client \
+    postgresql-contrib \
+    jq \
+    curl
 
-# Copy app
+# Create application directory
 WORKDIR /app
-COPY . /app
 
-# Install requirements
+# Copy application files
+COPY nexus/ /app/nexus/
+COPY requirements.txt /app/
+
+# Install Python dependencies
 RUN pip3 install --no-cache-dir -r requirements.txt
 
-# Create data directory
-RUN mkdir -p /data
-
-# S6-Overlay setup
-RUN chmod +x run.sh
+# Copy data for add-on
+COPY run.sh /
+RUN chmod a+x /run.sh
 
 # Copy root filesystem
 COPY rootfs /
 
-WORKDIR /app
-
 # Set environment variables
 ENV PYTHONPATH="${PYTHONPATH}:/app"
-ENV DATA_DIR="/data"
+ENV DATA_DIR="/data/nexus"
 
-CMD [ "./run.sh" ]
+# S6 will start services defined in /etc/services.d/
+ENTRYPOINT ["/init"]
+CMD []

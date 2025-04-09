@@ -1,0 +1,31 @@
+#!/usr/bin/with-contenv bashio
+# ==============================================================================
+# Start PostgreSQL service
+# s6-overlay docs: https://github.com/just-containers/s6-overlay
+# ==============================================================================
+
+bashio::log.info "Starting PostgreSQL..."
+
+# Initialize PostgreSQL data directory if needed
+data_dir="/data/postgres"
+
+if ! bashio::fs.directory_exists "${data_dir}/pg_hba.conf"; then
+    bashio::log.info "Initializing PostgreSQL data directory..."
+    mkdir -p "${data_dir}"
+    chown -R postgres:postgres "${data_dir}"
+    su - postgres -c "initdb -D ${data_dir}"
+    
+    # Modify PostgreSQL configuration
+    sed -i "s|data_directory = '.*'|data_directory = '${data_dir}'|g" \
+        "${data_dir}/postgresql.conf"
+        
+    sed -i "s|#listen_addresses = '.*'|listen_addresses = '127.0.0.1'|g" \
+        "${data_dir}/postgresql.conf"
+fi
+
+# Ensure PostgreSQL run directory exists
+mkdir -p /var/run/postgresql
+chown postgres:postgres /var/run/postgresql
+
+# Start PostgreSQL
+exec s6-setuidgid postgres postgres -D "${data_dir}"
