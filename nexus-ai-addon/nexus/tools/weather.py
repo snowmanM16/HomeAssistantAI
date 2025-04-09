@@ -1,79 +1,90 @@
+"""
+Weather tools for Nexus AI
+"""
 import logging
-import asyncio
 from typing import Dict, Any, Optional
 
-logger = logging.getLogger("nexus.tools.weather")
+logger = logging.getLogger(__name__)
 
 class WeatherTool:
-    """Tool for accessing weather data from Home Assistant."""
+    """Tool for getting weather information from Home Assistant."""
     
     def __init__(self, ha_api):
-        """Initialize with Home Assistant API."""
+        """Initialize the weather tool."""
         self.ha_api = ha_api
     
     async def get_current_weather(self) -> Dict[str, Any]:
-        """Get current weather information from Home Assistant weather entities."""
+        """
+        Get current weather from Home Assistant.
+        
+        Returns:
+            Dictionary with weather information
+        """
         try:
-            # Get states
+            # Try to find weather entities
             states = await self.ha_api.get_states()
+            
+            if not states.get("success", False):
+                return {"success": False, "message": "Failed to get states from Home Assistant"}
             
             # Look for weather entities
-            weather_entities = {
-                entity_id: state for entity_id, state in states.items()
-                if entity_id.startswith("weather.")
-            }
+            weather_entities = []
+            for entity in states["result"]:
+                entity_id = entity.get("entity_id", "")
+                if entity_id.startswith("weather."):
+                    weather_entities.append(entity)
             
             if not weather_entities:
-                logger.warning("No weather entities found")
-                return {"error": "No weather entities found in Home Assistant"}
+                return {"success": False, "message": "No weather entities found in Home Assistant"}
             
             # Use the first weather entity
-            weather_entity_id = list(weather_entities.keys())[0]
-            weather_state = weather_entities[weather_entity_id]
+            weather = weather_entities[0]
             
-            # Extract relevant data
+            # Extract weather data
             weather_data = {
-                "entity_id": weather_entity_id,
-                "state": weather_state.get("state", "unknown"),
-                "temperature": self._get_attr(weather_state, "temperature"),
-                "temperature_unit": self._get_attr(weather_state, "temperature_unit"),
-                "humidity": self._get_attr(weather_state, "humidity"),
-                "pressure": self._get_attr(weather_state, "pressure"),
-                "wind_speed": self._get_attr(weather_state, "wind_speed"),
-                "wind_bearing": self._get_attr(weather_state, "wind_bearing"),
-                "forecast": self._get_attr(weather_state, "forecast", [])
+                "entity_id": weather.get("entity_id"),
+                "state": weather.get("state"),
+                "friendly_name": weather.get("attributes", {}).get("friendly_name", "Weather"),
+                "temperature": weather.get("attributes", {}).get("temperature"),
+                "humidity": weather.get("attributes", {}).get("humidity"),
+                "pressure": weather.get("attributes", {}).get("pressure"),
+                "wind_speed": weather.get("attributes", {}).get("wind_speed"),
+                "wind_bearing": weather.get("attributes", {}).get("wind_bearing"),
+                "precipitation": weather.get("attributes", {}).get("precipitation"),
+                "forecast": weather.get("attributes", {}).get("forecast", [])
             }
             
-            return weather_data
+            return {"success": True, "weather": weather_data}
+        
         except Exception as e:
-            logger.error(f"Error getting weather data: {e}")
-            return {"error": str(e)}
+            logger.error(f"Error getting weather: {e}")
+            return {"success": False, "message": f"Error getting weather: {str(e)}"}
     
-    async def get_temperature_sensors(self) -> Dict[str, Any]:
-        """Get data from temperature sensors in Home Assistant."""
+    async def get_forecast(self, days: int = 5) -> Dict[str, Any]:
+        """
+        Get weather forecast from Home Assistant.
+        
+        Args:
+            days: Number of days for forecast
+            
+        Returns:
+            Dictionary with forecast information
+        """
         try:
-            # Get states
-            states = await self.ha_api.get_states()
+            # Get current weather (which includes forecast)
+            result = await self.get_current_weather()
             
-            # Look for temperature sensor entities
-            temp_sensors = {}
-            for entity_id, state in states.items():
-                if entity_id.startswith("sensor.") and "temperature" in entity_id.lower():
-                    # Check if it has a unit_of_measurement attribute that is temperature related
-                    unit = self._get_attr(state, "unit_of_measurement")
-                    if unit in ["°C", "°F", "K", "C", "F"]:
-                        friendly_name = self._get_attr(state, "friendly_name", entity_id)
-                        temp_sensors[entity_id] = {
-                            "name": friendly_name,
-                            "temperature": state.get("state", "unknown"),
-                            "unit": unit
-                        }
+            if not result.get("success", False):
+                return result
             
-            return {"sensors": temp_sensors}
+            # Extract forecast
+            forecast = result["weather"].get("forecast", [])
+            
+            # Limit to requested days
+            forecast = forecast[:days] if days < len(forecast) else forecast
+            
+            return {"success": True, "forecast": forecast}
+        
         except Exception as e:
-            logger.error(f"Error getting temperature sensors: {e}")
-            return {"error": str(e)}
-    
-    def _get_attr(self, state: Dict[str, Any], attr_name: str, default=None) -> Any:
-        """Helper to get attribute from state."""
-        return state.get("attributes", {}).get(attr_name, default)
+            logger.error(f"Error getting forecast: {e}")
+            return {"success": False, "message": f"Error getting forecast: {str(e)}"}

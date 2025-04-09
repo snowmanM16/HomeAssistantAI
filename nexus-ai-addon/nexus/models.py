@@ -1,14 +1,14 @@
+"""
+Database models for Nexus AI
+"""
 import os
-import json
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, Float, ForeignKey, JSON
+from sqlalchemy import (
+    create_engine, Column, Integer, String, Float, Boolean, 
+    Text, DateTime, ForeignKey, JSON
+)
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, scoped_session
-
-# Get the DATABASE_URL from environment variables
-DATABASE_URL = os.environ.get("DATABASE_URL")
+from sqlalchemy.orm import relationship, sessionmaker
 
 Base = declarative_base()
 
@@ -23,7 +23,7 @@ class Setting(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     def __repr__(self):
-        return f"<Setting {self.key}>"
+        return f"<Setting {self.key}={self.value}>"
 
 class HomeAssistantConfig(Base):
     """Store Home Assistant configuration."""
@@ -60,7 +60,7 @@ class Entity(Base):
     state_history = relationship("EntityState", back_populates="entity", cascade="all, delete-orphan")
     
     def __repr__(self):
-        return f"<Entity {self.entity_id}>"
+        return f"<Entity {self.entity_id}={self.last_state}>"
 
 class EntityState(Base):
     """Store historical states of entities for pattern analysis."""
@@ -75,7 +75,7 @@ class EntityState(Base):
     entity = relationship("Entity", back_populates="state_history")
     
     def __repr__(self):
-        return f"<EntityState {self.entity.entity_id} {self.state} at {self.timestamp}>"
+        return f"<EntityState {self.entity_id}={self.state} @ {self.timestamp}>"
 
 class Automation(Base):
     """Store automation configurations."""
@@ -130,31 +130,11 @@ class Pattern(Base):
     def __repr__(self):
         return f"<Pattern {self.name}>"
 
-# Initialize database connection
-if not DATABASE_URL:
-    raise ValueError("DATABASE_URL environment variable is not set")
-    
-print(f"Initializing database connection to PostgreSQL with URL: {DATABASE_URL}")
-engine = create_engine(DATABASE_URL)
-SessionLocal = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
-
-def get_db():
-    """Get database session."""
-    if SessionLocal is None:
-        raise ValueError("Database not initialized")
-    try:
-        db = SessionLocal()
-        return db
-    except Exception as e:
-        raise e
-
+# Database initialization function
 def init_db():
-    """Initialize the database - create all tables."""
-    if engine is None:
-        raise ValueError("Database engine not initialized - missing DATABASE_URL")
-    Base.metadata.create_all(bind=engine)
-    
-def close_db():
-    """Close database connection."""
-    if SessionLocal is not None:
-        SessionLocal.remove()
+    """Initialize the database engine and create tables if they don't exist."""
+    db_url = os.environ.get("DATABASE_URL")
+    engine = create_engine(db_url)
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine)
+    return Session()

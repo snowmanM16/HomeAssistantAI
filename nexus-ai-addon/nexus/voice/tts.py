@@ -1,114 +1,103 @@
+"""
+Text-to-speech functionality for Nexus AI using OpenAI TTS API
+"""
 import os
-import logging
 import tempfile
-import asyncio
-import base64
-from typing import Optional, Union, Dict, Any
+import logging
+from typing import Optional
+import openai
 
-logger = logging.getLogger("nexus.voice.tts")
+logger = logging.getLogger(__name__)
 
 class TextToSpeech:
-    """Text-to-Speech using Piper TTS library or external services."""
+    """Text-to-speech conversion using OpenAI TTS"""
     
     def __init__(self):
-        """Initialize the TTS engine."""
-        # Check if voice processing is enabled
-        self.enabled = os.getenv("VOICE_ENABLED", "false").lower() == "true"
-        if not self.enabled:
-            logger.info("Voice processing is disabled")
-            return
+        """Initialize the TTS service"""
+        self.api_key = os.environ.get("OPENAI_API_KEY", "")
+        self.voice = "alloy"  # Default voice
         
-        # Try to initialize Piper
-        self.piper_available = False
-        try:
-            # This is a placeholder - in a real implementation, 
-            # you would import and initialize Piper here
-            # For now, we'll just simulate TTS with a message
-            logger.info("Piper TTS would be initialized here")
-            self.piper_available = True
-        except Exception as e:
-            logger.warning(f"Could not initialize Piper TTS: {e}")
-            self.piper_available = False
+        # Set OpenAI API key if available
+        if self.api_key:
+            openai.api_key = self.api_key
     
-    async def synthesize(self, text: str, voice: str = "default") -> str:
+    async def synthesize(self, text: str, voice: Optional[str] = None) -> dict:
         """
-        Synthesize text to speech.
+        Synthesize text to speech using OpenAI TTS API
         
         Args:
-            text: The text to synthesize
-            voice: Voice identifier (if supported)
+            text: Text to convert to speech
+            voice: Voice to use (alloy, echo, fable, onyx, nova, shimmer)
             
         Returns:
-            Base64-encoded audio data
+            Dictionary with audio data or error
         """
-        if not self.enabled:
-            logger.warning("TTS is not enabled")
-            return ""
+        if not self.api_key:
+            return {"success": False, "error": "OpenAI API key not configured"}
         
         try:
-            # In a real implementation, this would use Piper or another TTS system
-            # For now, we'll just return a mock response
-            logger.info(f"Synthesizing text: {text[:50]}...")
+            # Use provided voice or default
+            selected_voice = voice or self.voice
             
-            # Call Home Assistant TTS service as a fallback
-            try:
-                # This assumes we have access to the HA API
-                from nexus.ha_api import HomeAssistantAPI
-                ha_api = HomeAssistantAPI()
-                
-                # Get entity_id from memory or configuration
-                media_player_entity = "media_player.living_room"  # Default
-                
-                # Call TTS service
-                await ha_api.call_service(
-                    domain="tts",
-                    service="speak",
-                    data={
-                        "entity_id": media_player_entity,
-                        "message": text
-                    }
-                )
-                logger.info(f"Text spoken through Home Assistant TTS service")
-            except Exception as e:
-                logger.error(f"Failed to use Home Assistant TTS: {e}")
+            # Ensure valid voice
+            valid_voices = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"]
+            if selected_voice not in valid_voices:
+                selected_voice = "alloy"
             
-            # For API response, we'll send a placeholder base64 string
-            # In a real implementation, this would be actual audio data
-            mock_audio = "VGhpcyBpcyBhIHBsYWNlaG9sZGVyIGZvciBhdWRpbyBkYXRhLg=="
-            return mock_audio
+            # Create temporary file for audio
+            with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as temp_file:
+                temp_path = temp_file.name
             
-        except Exception as e:
-            logger.error(f"TTS error: {e}")
-            return ""
-    
-    async def say_through_ha(self, text: str, entity_id: str) -> Dict[str, Any]:
-        """
-        Say text through a Home Assistant media player entity.
-        
-        Args:
-            text: The text to speak
-            entity_id: The media player entity ID
-            
-        Returns:
-            Result of the service call
-        """
-        try:
-            # This assumes we have access to the HA API
-            from nexus.ha_api import HomeAssistantAPI
-            ha_api = HomeAssistantAPI()
-            
-            # Call TTS service
-            result = await ha_api.call_service(
-                domain="tts",
-                service="speak",
-                data={
-                    "entity_id": entity_id,
-                    "message": text
-                }
+            # Generate speech using OpenAI TTS API
+            response = openai.audio.speech.create(
+                model="tts-1",
+                voice=selected_voice,
+                input=text
             )
             
-            logger.info(f"Text spoken through {entity_id}")
-            return {"success": True, "entity_id": entity_id}
+            # Save to the temporary file
+            response.stream_to_file(temp_path)
+            
+            # Read the file
+            with open(temp_path, "rb") as audio_file:
+                audio_data = audio_file.read()
+            
+            # Clean up temporary file
+            os.unlink(temp_path)
+            
+            return {
+                "success": True,
+                "audio_data": audio_data,
+                "format": "mp3"
+            }
+        
         except Exception as e:
-            logger.error(f"Failed to use Home Assistant TTS: {e}")
-            return {"success": False, "error": str(e)}
+            logger.error(f"Error in speech synthesis: {e}")
+            
+            # Clean up temporary file in case of error
+            if 'temp_path' in locals():
+                try:
+                    os.unlink(temp_path)
+                except:
+                    pass
+            
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    def set_voice(self, voice: str) -> bool:
+        """
+        Set the default voice for TTS
+        
+        Args:
+            voice: Voice to use (alloy, echo, fable, onyx, nova, shimmer)
+            
+        Returns:
+            Success status
+        """
+        valid_voices = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"]
+        if voice in valid_voices:
+            self.voice = voice
+            return True
+        return False

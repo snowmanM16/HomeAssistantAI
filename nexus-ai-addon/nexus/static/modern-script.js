@@ -1,970 +1,743 @@
-// Modern UI JavaScript for Nexus AI
-
-document.addEventListener('DOMContentLoaded', function() {
-    // Elements
-    const sidebar = document.getElementById('sidebar');
-    const overlay = document.getElementById('overlay');
-    const menuToggle = document.getElementById('menuToggle');
-    const navLinks = document.querySelectorAll('.nav-link');
-    const pageTitle = document.getElementById('pageTitle');
-    const sections = document.querySelectorAll('.section-content');
-    const messageInput = document.getElementById('messageInput');
-    const sendBtn = document.getElementById('sendBtn');
-    const micBtn = document.getElementById('micBtn');
-    const chatMessages = document.getElementById('chatMessages');
-    const memorySearchBtn = document.getElementById('memorySearchBtn');
-    const memorySearchInput = document.getElementById('memorySearchInput');
-    const memoryResults = document.getElementById('memoryResults');
-    const memorySaveBtn = document.getElementById('memorySaveBtn');
-    const memoryKey = document.getElementById('memoryKey');
-    const memoryValue = document.getElementById('memoryValue');
-    const eventList = document.getElementById('eventList');
-    const refreshBtn = document.getElementById('refreshBtn');
-    
-    // Home Assistant configuration elements
-    const haConfigForm = document.getElementById('haConfigForm');
-    const haUrl = document.getElementById('haUrl');
-    const haToken = document.getElementById('haToken');
-    const haStatus = document.getElementById('haStatus');
-    
-    // Automation elements
-    const automationList = document.getElementById('automationList');
-    const automationSuggestions = document.getElementById('automationSuggestions');
-    const refreshSuggestionsBtn = document.getElementById('refreshSuggestionsBtn');
-    const automationName = document.getElementById('automationName');
-    const automationDescription = document.getElementById('automationDescription');
-    const createFromDescriptionBtn = document.getElementById('createFromDescriptionBtn');
-
-    // Variables
-    let mediaRecorder = null;
-    let audioChunks = [];
-    let isRecording = false;
-
-    // Initialize UI
-    checkHealth();
-    
-    // Sidebar toggle functionality
-    menuToggle.addEventListener('click', function() {
-        sidebar.classList.toggle('active');
-        overlay.classList.toggle('active');
-    });
-
-    overlay.addEventListener('click', function() {
-        sidebar.classList.remove('active');
-        overlay.classList.remove('active');
-    });
-
-    // Section navigation
-    navLinks.forEach(link => {
-        link.addEventListener('click', function(e) {
-            e.preventDefault();
-            
-            // Remove active class from all links
-            navLinks.forEach(l => l.classList.remove('active'));
-            
-            // Add active class to clicked link
-            this.classList.add('active');
-            
-            const sectionId = this.getAttribute('data-section');
-            pageTitle.textContent = this.textContent.trim();
-            
-            // Hide all sections
-            sections.forEach(section => section.classList.remove('active'));
-            
-            // Show selected section
-            const selectedSection = document.getElementById(sectionId + 'Section');
-            if (selectedSection) {
-                selectedSection.classList.add('active');
-                
-                // Load section-specific data
-                if (sectionId === 'calendar') {
-                    loadCalendarEvents();
-                } else if (sectionId === 'automations') {
-                    loadAutomations();
-                    loadAutomationSuggestions();
-                } else if (sectionId === 'settings') {
-                    checkHomeAssistantStatus();
-                }
-            }
-            
-            // Close sidebar on mobile
-            if (window.innerWidth < 768) {
-                sidebar.classList.remove('active');
-                overlay.classList.remove('active');
-            }
-        });
-    });
-
-    // Input behavior and sending messages
-    if (messageInput) {
-        messageInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-            }
-        });
+$(document).ready(function() {
+    // Handle navigation tabs
+    $('.nav-link').on('click', function(e) {
+        e.preventDefault();
         
-        // Auto-resize textarea
-        messageInput.addEventListener('input', function() {
-            this.style.height = 'auto';
-            this.style.height = (this.scrollHeight) + 'px';
-        });
-    }
-
-    if (sendBtn) {
-        sendBtn.addEventListener('click', sendMessage);
-    }
-    
-    if (micBtn) {
-        micBtn.addEventListener('click', toggleRecording);
-    }
-
-    // Memory functions
-    if (memorySearchBtn) {
-        memorySearchBtn.addEventListener('click', searchMemory);
-    }
-    
-    if (memorySaveBtn) {
-        memorySaveBtn.addEventListener('click', saveMemory);
-    }
-
-    // Refresh button
-    refreshBtn.addEventListener('click', function() {
-        const activeSection = document.querySelector('.section-content.active');
-        const sectionId = activeSection.id;
+        // Get the target section
+        const targetId = $(this).attr('id').replace('-tab', '-section');
         
-        if (sectionId === 'chatSection') {
-            // Just refresh health check for chat
-            checkHealth();
-        } else if (sectionId === 'calendarSection') {
-            loadCalendarEvents();
-        } else if (sectionId === 'memorySection') {
-            // Clear search results
-            memoryResults.innerHTML = '';
-            memorySearchInput.value = '';
-        } else if (sectionId === 'automationsSection') {
-            loadAutomations();
-            loadAutomationSuggestions();
-        } else if (sectionId === 'settingsSection') {
-            checkHealth();
-            checkHomeAssistantStatus();
-        }
+        // Update active tab
+        $('.nav-link').removeClass('active');
+        $(this).addClass('active');
+        
+        // Show target section, hide others
+        $('.content-section').removeClass('active');
+        $('#' + targetId).addClass('active');
     });
-
-    // Home Assistant Configuration
-    if (haConfigForm) {
-        haConfigForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            configureHomeAssistant();
-        });
-    }
     
-    // Automation functions
-    if (refreshSuggestionsBtn) {
-        refreshSuggestionsBtn.addEventListener('click', loadAutomationSuggestions);
-    }
-    
-    if (createFromDescriptionBtn) {
-        createFromDescriptionBtn.addEventListener('click', createAutomationFromDescription);
-    }
-
-    // Functions
-    function sendMessage() {
-        const message = messageInput.value.trim();
+    // Handle chat form submission
+    $('#chat-form').on('submit', function(e) {
+        e.preventDefault();
+        
+        const input = $('#chat-input');
+        const message = input.val().trim();
+        
         if (message) {
             // Add user message to chat
-            addMessage(message, 'user');
+            addChatMessage(message, 'user');
             
-            // Clear input field
-            messageInput.value = '';
-            messageInput.style.height = 'auto';
+            // Clear input
+            input.val('');
             
-            // Show typing indicator
-            showTypingIndicator();
-            
-            // Send to the API
-            fetch('/ask', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt: message })
-            })
-            .then(response => response.json())
-            .then(data => {
-                // Remove typing indicator
-                removeTypingIndicator();
-                
-                // Add response to chat
-                addMessage(data.response, 'system');
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                removeTypingIndicator();
-                addMessage('Sorry, there was an error processing your request.', 'system');
-            });
+            // Send to server and get response
+            sendChatMessage(message);
         }
-    }
-
-    function addMessage(text, sender) {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${sender}-message`;
-        
-        const contentDiv = document.createElement('div');
-        contentDiv.className = 'message-content';
-        
-        // Format the text with basic markdown-like formatting
-        text = text
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/\*(.*?)\*/g, '<em>$1</em>')
-            .replace(/`(.*?)`/g, '<code>$1</code>')
-            .replace(/\n/g, '<br>');
-            
-        contentDiv.innerHTML = text;
-        
-        const timeDiv = document.createElement('div');
-        timeDiv.className = 'message-time';
-        
-        const now = new Date();
-        const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        timeDiv.textContent = `Today at ${timeString}`;
-        
-        messageDiv.appendChild(contentDiv);
-        messageDiv.appendChild(timeDiv);
-        
-        chatMessages.appendChild(messageDiv);
-        
-        // Scroll to bottom
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
-
-    function showTypingIndicator() {
-        const indicatorDiv = document.createElement('div');
-        indicatorDiv.className = 'message system-message typing';
-        indicatorDiv.id = 'typingIndicator';
-        
-        const contentDiv = document.createElement('div');
-        contentDiv.className = 'message-content';
-        contentDiv.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
-        
-        indicatorDiv.appendChild(contentDiv);
-        chatMessages.appendChild(indicatorDiv);
-        
-        // Scroll to bottom
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
-
-    function removeTypingIndicator() {
-        const indicator = document.getElementById('typingIndicator');
-        if (indicator) {
-            indicator.remove();
-        }
-    }
-
-    function toggleRecording() {
-        if (isRecording) {
-            stopRecording();
+    });
+    
+    // Handle voice input button
+    $('#voice-input-btn').on('click', function() {
+        // Check if voice enabled in settings
+        if ($('#voice-enabled').is(':checked')) {
+            startVoiceRecognition();
         } else {
-            startRecording();
+            showToast('Voice input is not enabled. Please enable it in Settings.', 'warning');
         }
-    }
-
-    function startRecording() {
-        navigator.mediaDevices.getUserMedia({ audio: true })
-            .then(stream => {
-                mediaRecorder = new MediaRecorder(stream);
-                audioChunks = [];
-                
-                mediaRecorder.addEventListener('dataavailable', event => {
-                    audioChunks.push(event.data);
-                });
-                
-                mediaRecorder.addEventListener('stop', () => {
-                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-                    
-                    // Show a temporary message
-                    const processingId = 'processing-' + Date.now();
-                    const processingDiv = document.createElement('div');
-                    processingDiv.className = 'message system-message';
-                    processingDiv.id = processingId;
-                    
-                    const contentDiv = document.createElement('div');
-                    contentDiv.className = 'message-content';
-                    contentDiv.innerHTML = 'Processing your voice...';
-                    
-                    processingDiv.appendChild(contentDiv);
-                    chatMessages.appendChild(processingDiv);
-                    chatMessages.scrollTop = chatMessages.scrollHeight;
-                    
-                    // Send to the API for transcription
-                    fetch('/voice/transcribe', {
-                        method: 'POST',
-                        body: audioBlob
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        // Remove the processing message
-                        document.getElementById(processingId).remove();
-                        
-                        if (data.text && data.text.trim()) {
-                            // Add the transcribed text as a user message
-                            addMessage(data.text, 'user');
-                            
-                            // Now send the transcribed text to the AI
-                            showTypingIndicator();
-                            
-                            fetch('/ask', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ prompt: data.text })
-                            })
-                            .then(response => response.json())
-                            .then(data => {
-                                removeTypingIndicator();
-                                addMessage(data.response, 'system');
-                            })
-                            .catch(error => {
-                                console.error('Error:', error);
-                                removeTypingIndicator();
-                                addMessage('Sorry, there was an error processing your request.', 'system');
-                            });
-                        } else {
-                            addMessage('Sorry, I couldn\'t understand the audio.', 'system');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        document.getElementById(processingId).remove();
-                        addMessage('Sorry, there was an error processing the audio.', 'system');
-                    });
-                    
-                    stream.getTracks().forEach(track => track.stop());
-                });
-                
-                mediaRecorder.start();
-                isRecording = true;
-                micBtn.classList.add('recording');
-                micBtn.innerHTML = '<i class="bi bi-mic-mute"></i>';
-            })
-            .catch(error => {
-                console.error('Error accessing microphone:', error);
-                addMessage('Sorry, I couldn\'t access your microphone.', 'system');
-            });
-    }
-
-    function stopRecording() {
-        if (mediaRecorder && isRecording) {
-            mediaRecorder.stop();
-            isRecording = false;
-            micBtn.classList.remove('recording');
-            micBtn.innerHTML = '<i class="bi bi-mic"></i>';
-        }
-    }
-
-    function loadCalendarEvents() {
-        if (!eventList) return;
-        
-        eventList.innerHTML = `
-            <li class="event-item">
-                <div class="event-time">Loading...</div>
-                <div class="event-details">
-                    <div class="event-title">Fetching your events</div>
-                </div>
-            </li>
-        `;
-        
-        fetch('/calendar')
-            .then(response => response.json())
-            .then(data => {
-                eventList.innerHTML = '';
-                
-                if (data.events && data.events.length > 0) {
-                    data.events.forEach(event => {
-                        const eventItem = document.createElement('li');
-                        eventItem.className = 'event-item';
-                        
-                        const eventTime = document.createElement('div');
-                        eventTime.className = 'event-time';
-                        eventTime.textContent = event.time || 'No time specified';
-                        
-                        const eventDetails = document.createElement('div');
-                        eventDetails.className = 'event-details';
-                        
-                        const eventTitle = document.createElement('div');
-                        eventTitle.className = 'event-title';
-                        eventTitle.textContent = event.summary || 'Untitled Event';
-                        
-                        const eventLocation = document.createElement('div');
-                        eventLocation.className = 'event-location';
-                        eventLocation.textContent = event.location || '';
-                        
-                        eventDetails.appendChild(eventTitle);
-                        if (event.location) {
-                            eventDetails.appendChild(eventLocation);
-                        }
-                        
-                        eventItem.appendChild(eventTime);
-                        eventItem.appendChild(eventDetails);
-                        
-                        eventList.appendChild(eventItem);
-                    });
-                } else {
-                    eventList.innerHTML = `
-                        <li class="event-item">
-                            <div class="event-details">
-                                <div class="event-title">No events found for today</div>
-                            </div>
-                        </li>
-                    `;
-                }
-            })
-            .catch(error => {
-                console.error('Error loading calendar:', error);
-                eventList.innerHTML = `
-                    <li class="event-item">
-                        <div class="event-details">
-                            <div class="event-title">Error loading calendar events</div>
-                            <div class="event-location">${error.message}</div>
-                        </div>
-                    </li>
-                `;
-                
-                // Show auth UI if needed
-                const calendarAuthCard = document.getElementById('calendarAuthCard');
-                if (calendarAuthCard) {
-                    calendarAuthCard.style.display = 'block';
-                }
-            });
-    }
-
-    function searchMemory() {
-        const query = memorySearchInput.value.trim();
-        if (!query) return;
-        
-        memoryResults.innerHTML = `
-            <div class="memory-item">
-                <div class="memory-key">Searching...</div>
-                <div class="memory-value">Please wait while we search for "${query}"</div>
-            </div>
-        `;
-        
-        fetch(`/memory/search?query=${encodeURIComponent(query)}`)
-            .then(response => response.json())
-            .then(data => {
-                memoryResults.innerHTML = '';
-                
-                if (data.results && data.results.length > 0) {
-                    data.results.forEach(result => {
-                        const memoryItem = document.createElement('div');
-                        memoryItem.className = 'memory-item';
-                        
-                        const memoryKey = document.createElement('div');
-                        memoryKey.className = 'memory-key';
-                        memoryKey.textContent = result.key;
-                        
-                        const memoryValue = document.createElement('div');
-                        memoryValue.className = 'memory-value';
-                        memoryValue.textContent = result.value;
-                        
-                        const memoryActions = document.createElement('div');
-                        memoryActions.className = 'memory-actions';
-                        
-                        const editBtn = document.createElement('button');
-                        editBtn.className = 'btn btn-secondary btn-sm';
-                        editBtn.textContent = 'Edit';
-                        editBtn.addEventListener('click', () => {
-                            memoryKey.value = result.key;
-                            memoryValue.value = result.value;
-                        });
-                        
-                        const deleteBtn = document.createElement('button');
-                        deleteBtn.className = 'btn btn-danger btn-sm';
-                        deleteBtn.textContent = 'Delete';
-                        deleteBtn.addEventListener('click', () => {
-                            if (confirm(`Delete memory item "${result.key}"?`)) {
-                                // Implement memory deletion
-                                console.log('Delete memory:', result.key);
-                            }
-                        });
-                        
-                        memoryActions.appendChild(editBtn);
-                        memoryActions.appendChild(deleteBtn);
-                        
-                        memoryItem.appendChild(memoryKey);
-                        memoryItem.appendChild(memoryValue);
-                        memoryItem.appendChild(memoryActions);
-                        
-                        memoryResults.appendChild(memoryItem);
-                    });
-                } else {
-                    memoryResults.innerHTML = `
-                        <div class="memory-item">
-                            <div class="memory-key">No results</div>
-                            <div class="memory-value">No memories found for "${query}"</div>
-                        </div>
-                    `;
-                }
-            })
-            .catch(error => {
-                console.error('Error searching memory:', error);
-                memoryResults.innerHTML = `
-                    <div class="memory-item">
-                        <div class="memory-key">Error</div>
-                        <div class="memory-value">Failed to search memory: ${error.message}</div>
-                    </div>
-                `;
-            });
-    }
-
-    function saveMemory() {
-        const key = memoryKey.value.trim();
-        const value = memoryValue.value.trim();
-        
-        if (!key || !value) {
-            alert('Please provide both a key and value for the memory');
-            return;
-        }
-        
-        const originalButtonText = memorySaveBtn.innerHTML;
-        memorySaveBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Saving...';
-        memorySaveBtn.disabled = true;
-        
-        fetch('/memory', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                key: key,
-                value: value
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            memorySaveBtn.innerHTML = originalButtonText;
-            memorySaveBtn.disabled = false;
-            
-            if (data.status === 'saved') {
-                memoryKey.value = '';
-                memoryValue.value = '';
-                
-                const successElement = document.createElement('div');
-                successElement.className = 'alert alert-success';
-                successElement.textContent = 'Memory saved successfully!';
-                
-                memorySaveBtn.parentNode.appendChild(successElement);
-                
-                // Remove success message after 3 seconds
-                setTimeout(() => {
-                    successElement.remove();
-                }, 3000);
-            } else {
-                alert('Error saving memory: ' + (data.error || 'Unknown error'));
-            }
-        })
-        .catch(error => {
-            console.error('Error saving memory:', error);
-            memorySaveBtn.innerHTML = originalButtonText;
-            memorySaveBtn.disabled = false;
-            alert('Error saving memory: ' + error.message);
-        });
-    }
-
-    function checkHealth() {
-        fetch('/health')
-            .then(response => response.json())
-            .then(data => {
-                const openaiStatus = document.getElementById('openaiStatus');
-                const calendarStatus = document.getElementById('calendarStatus');
-                const voiceToggle = document.getElementById('voiceToggle');
-                
-                if (openaiStatus) {
-                    // Check OpenAI connection
-                    fetch('/ask', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ prompt: 'status check' })
-                    })
-                    .then(response => {
-                        if (response.ok) {
-                            openaiStatus.innerHTML = '<span class="status-dot connected"></span><span>Connected</span>';
-                        } else {
-                            openaiStatus.innerHTML = '<span class="status-dot error"></span><span>Error</span>';
-                        }
-                    })
-                    .catch(() => {
-                        openaiStatus.innerHTML = '<span class="status-dot disconnected"></span><span>Not configured</span>';
-                    });
-                }
-                
-                if (calendarStatus) {
-                    // Check Calendar connection
-                    fetch('/calendar')
-                    .then(response => {
-                        if (response.ok) {
-                            calendarStatus.innerHTML = '<span class="status-dot connected"></span><span>Connected</span>';
-                        } else {
-                            calendarStatus.innerHTML = '<span class="status-dot pending"></span><span>Not authorized</span>';
-                        }
-                    })
-                    .catch(() => {
-                        calendarStatus.innerHTML = '<span class="status-dot disconnected"></span><span>Not configured</span>';
-                    });
-                }
-                
-                // Check voice processing status
-                if (voiceToggle) {
-                    fetch('/voice/transcribe', { method: 'POST' })
-                    .then(response => {
-                        voiceToggle.checked = response.ok;
-                    })
-                    .catch(() => {
-                        voiceToggle.checked = false;
-                    });
-                }
-            })
-            .catch(error => {
-                console.error('Health check error:', error);
-            });
-    }
-
-    // Home Assistant configuration and status check
-    function configureHomeAssistant() {
-        const url = haUrl.value.trim();
-        const token = haToken.value.trim();
-        
-        if (!url) {
-            alert('Please enter the Home Assistant URL');
-            return;
-        }
-        
-        if (!token) {
-            alert('Please enter a long-lived access token');
-            return;
-        }
-        
-        const submitBtn = haConfigForm.querySelector('button[type="submit"]');
-        const originalButtonText = submitBtn.innerHTML;
-        submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Connecting...';
-        submitBtn.disabled = true;
-        
-        fetch('/ha/configure', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                url: url,
-                token: token
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            submitBtn.innerHTML = originalButtonText;
-            submitBtn.disabled = false;
-            
-            if (data.status === 'configured' && data.connection.connected) {
-                alert('Home Assistant connection configured successfully!');
-                haToken.value = ''; // Clear token for security
-                checkHomeAssistantStatus();
-            } else {
-                alert('Error configuring Home Assistant: ' + (data.connection.error || 'Unknown error'));
-            }
-        })
-        .catch(error => {
-            console.error('Error configuring Home Assistant:', error);
-            submitBtn.innerHTML = originalButtonText;
-            submitBtn.disabled = false;
-            alert('Error configuring Home Assistant: ' + error.message);
-        });
-    }
+    });
     
-    function checkHomeAssistantStatus() {
-        if (!haStatus) return;
+    // Handle Home Assistant configuration form
+    $('#ha-config-form').on('submit', function(e) {
+        e.preventDefault();
         
-        haStatus.innerHTML = '<span class="status-dot pending"></span><span>Checking...</span>';
+        const url = $('#ha-url').val().trim();
+        const token = $('#ha-token').val().trim();
         
-        fetch('/ha/status')
-            .then(response => response.json())
-            .then(data => {
-                if (data.configured && data.connection.connected) {
-                    haStatus.innerHTML = `<span class="status-dot connected"></span><span>Connected to ${data.connection.location_name || 'Home Assistant'} (${data.connection.version || 'unknown'})</span>`;
-                } else if (data.configured) {
-                    haStatus.innerHTML = `<span class="status-dot error"></span><span>Connection error: ${data.connection.error || 'Unknown error'}</span>`;
-                } else {
-                    haStatus.innerHTML = '<span class="status-dot disconnected"></span><span>Not configured</span>';
-                }
-            })
-            .catch(error => {
-                console.error('Error checking Home Assistant status:', error);
-                haStatus.innerHTML = '<span class="status-dot error"></span><span>Error checking status</span>';
-            });
-    }
-    
-    // Automation functions
-    function loadAutomations() {
-        if (!automationList) return;
-        
-        automationList.innerHTML = '<div class="loading-spinner"></div>';
-        
-        fetch('/automations')
-            .then(response => response.json())
-            .then(data => {
-                automationList.innerHTML = '';
-                
-                if (data.automations && data.automations.length > 0) {
-                    data.automations.forEach(automation => {
-                        const automationItem = document.createElement('div');
-                        automationItem.className = 'automation-item';
-                        
-                        const isActive = automation.state === 'on';
-                        automationItem.classList.add(isActive ? 'active' : 'inactive');
-                        
-                        automationItem.innerHTML = `
-                            <div class="automation-header">
-                                <span class="automation-name">${automation.name}</span>
-                                <span class="automation-status ${isActive ? 'enabled' : 'disabled'}">${isActive ? 'Enabled' : 'Disabled'}</span>
-                            </div>
-                            <div class="automation-controls">
-                                <button class="btn btn-sm ${isActive ? 'btn-warning' : 'btn-success'}" data-entity="${automation.entity_id}" data-action="${isActive ? 'disable' : 'enable'}">
-                                    ${isActive ? '<i class="bi bi-pause-fill"></i> Disable' : '<i class="bi bi-play-fill"></i> Enable'}
-                                </button>
-                                <button class="btn btn-sm btn-primary" data-entity="${automation.entity_id}" data-action="trigger">
-                                    <i class="bi bi-lightning"></i> Trigger
-                                </button>
-                            </div>
-                        `;
-                        
-                        automationList.appendChild(automationItem);
-                        
-                        // Add event listeners
-                        const toggleBtn = automationItem.querySelector(`button[data-action="${isActive ? 'disable' : 'enable'}"]`);
-                        toggleBtn.addEventListener('click', () => toggleAutomation(automation.entity_id, !isActive));
-                        
-                        const triggerBtn = automationItem.querySelector('button[data-action="trigger"]');
-                        triggerBtn.addEventListener('click', () => triggerAutomation(automation.entity_id));
-                    });
-                } else {
-                    automationList.innerHTML = '<div class="no-items">No automations found</div>';
-                }
-            })
-            .catch(error => {
-                console.error('Error loading automations:', error);
-                automationList.innerHTML = `<div class="error-message">Error loading automations: ${error.message}</div>`;
-            });
-    }
-    
-    function loadAutomationSuggestions() {
-        if (!automationSuggestions) return;
-        
-        automationSuggestions.innerHTML = '<div class="loading-spinner"></div>';
-        
-        fetch('/automations/suggestions')
-            .then(response => response.json())
-            .then(data => {
-                automationSuggestions.innerHTML = '';
-                
-                if (data.suggestions && data.suggestions.length > 0) {
-                    data.suggestions.forEach(suggestion => {
-                        const suggestionItem = document.createElement('div');
-                        suggestionItem.className = 'suggestion-item';
-                        
-                        suggestionItem.innerHTML = `
-                            <div class="suggestion-details">
-                                <div class="suggestion-title">${suggestion.name || suggestion.description}</div>
-                                <div class="suggestion-description">${suggestion.description}</div>
-                                <div class="suggestion-confidence">Confidence: ${Math.round(suggestion.confidence * 100)}%</div>
-                            </div>
-                            <div class="suggestion-actions">
-                                <button class="btn btn-primary btn-sm" data-suggestion="${encodeURIComponent(JSON.stringify(suggestion))}">Apply</button>
-                            </div>
-                        `;
-                        
-                        automationSuggestions.appendChild(suggestionItem);
-                        
-                        // Add event listener for apply button
-                        const applyBtn = suggestionItem.querySelector('button');
-                        applyBtn.addEventListener('click', () => {
-                            const suggestionData = JSON.parse(decodeURIComponent(applyBtn.dataset.suggestion));
-                            applyAutomationSuggestion(suggestionData);
-                        });
-                    });
-                } else {
-                    automationSuggestions.innerHTML = `
-                        <div class="suggestion-item">
-                            <div class="suggestion-details">
-                                <div class="suggestion-title">No suggestions available</div>
-                                <div class="suggestion-description">Nexus AI hasn't detected any automation patterns yet. Keep using your smart home and check back later.</div>
-                            </div>
-                        </div>
-                    `;
-                }
-            })
-            .catch(error => {
-                console.error('Error loading automation suggestions:', error);
-                automationSuggestions.innerHTML = `
-                    <div class="suggestion-item">
-                        <div class="suggestion-details">
-                            <div class="suggestion-title">Error loading suggestions</div>
-                            <div class="suggestion-description">${error.message}</div>
-                        </div>
-                    </div>
-                `;
-            });
-    }
-    
-    function toggleAutomation(entityId, enable) {
-        fetch(`/automations/toggle/${entityId}?enable=${enable}`, {
-            method: 'POST'
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Reload automations to show updated state
-                loadAutomations();
-            } else {
-                alert(`Error toggling automation: ${data.error || 'Unknown error'}`);
-            }
-        })
-        .catch(error => {
-            console.error('Error toggling automation:', error);
-            alert(`Error toggling automation: ${error.message}`);
-        });
-    }
-    
-    function triggerAutomation(entityId) {
-        fetch(`/automations/trigger/${entityId}`, {
-            method: 'POST'
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert(`Automation "${entityId}" triggered successfully`);
-            } else {
-                alert(`Error triggering automation: ${data.error || 'Unknown error'}`);
-            }
-        })
-        .catch(error => {
-            console.error('Error triggering automation:', error);
-            alert(`Error triggering automation: ${error.message}`);
-        });
-    }
-    
-    function applyAutomationSuggestion(suggestion) {
-        // Check if suggestion has the necessary data
-        if (!suggestion.name || !suggestion.triggers || !suggestion.actions) {
-            alert('Invalid automation suggestion data');
-            return;
+        if (url && token) {
+            configureHomeAssistant(url, token);
+        } else {
+            showToast('Please enter both URL and token.', 'warning');
         }
-        
-        const requestData = {
-            name: suggestion.name,
-            triggers: suggestion.triggers,
-            actions: suggestion.actions
-        };
-        
-        if (suggestion.conditions) {
-            requestData.conditions = suggestion.conditions;
-        }
-        
-        fetch('/automations/create', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(requestData)
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert(`Automation "${suggestion.name}" created successfully!`);
-                loadAutomations();
-            } else {
-                alert(`Error creating automation: ${data.error || 'Unknown error'}`);
-            }
-        })
-        .catch(error => {
-            console.error('Error creating automation:', error);
-            alert(`Error creating automation: ${error.message}`);
-        });
-    }
+    });
     
-    function createAutomationFromDescription() {
-        const name = automationName.value.trim();
-        const description = automationDescription.value.trim();
+    // Handle AI configuration form
+    $('#ai-config-form').on('submit', function(e) {
+        e.preventDefault();
         
-        if (!name || !description) {
-            alert('Please provide both a name and description for the automation');
-            return;
+        const apiKey = $('#openai-api-key').val().trim();
+        const voiceEnabled = $('#voice-enabled').is(':checked');
+        
+        saveAISettings(apiKey, voiceEnabled);
+    });
+    
+    // Handle calendar authorization button
+    $('#calendar-auth-btn').on('click', function() {
+        const calendarEnabled = $('#calendar-enabled').is(':checked');
+        
+        if (calendarEnabled) {
+            authorizeCalendar();
+        } else {
+            showToast('Please enable Google Calendar integration first.', 'warning');
         }
+    });
+    
+    // Handle refresh automation suggestions button
+    $('#refresh-suggestions-btn').on('click', function() {
+        loadAutomationSuggestions();
+    });
+    
+    // Handle refresh active automations button
+    $('#refresh-automations-btn').on('click', function() {
+        loadActiveAutomations();
+    });
+    
+    // Handle refresh memory button
+    $('#refresh-memory-btn').on('click', function() {
+        loadMemoryItems();
+    });
+    
+    // Handle add memory button
+    $('#add-memory-btn').on('click', function() {
+        $('#add-memory-modal').modal('show');
+    });
+    
+    // Handle save memory button
+    $('#save-memory-btn').on('click', function() {
+        const key = $('#memory-key').val().trim();
+        const value = $('#memory-value').val().trim();
+        const isPreference = $('#is-preference').is(':checked');
         
-        const createBtn = createFromDescriptionBtn;
-        const originalText = createBtn.innerHTML;
-        createBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Creating...';
-        createBtn.disabled = true;
-        
-        // First, ask the AI to generate an automation based on the description
-        fetch('/ask', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                prompt: `Please create a Home Assistant automation with this description: "${description}". Respond with only the JSON for the automation, including triggers, conditions (if needed), and actions. Make it compatible with Home Assistant's automation API.`
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.response) {
-                // Try to extract JSON from the AI response
-                try {
-                    // Look for JSON block in the response
-                    let jsonStr = data.response;
-                    const jsonMatch = jsonStr.match(/```json\n([\s\S]*?)\n```/) || jsonStr.match(/```([\s\S]*?)```/);
-                    
-                    if (jsonMatch) {
-                        jsonStr = jsonMatch[1];
-                    }
-                    
-                    const automation = JSON.parse(jsonStr);
-                    
-                    // Now create the automation
-                    return fetch('/automations/create', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            name: name,
-                            triggers: automation.trigger,
-                            conditions: automation.condition,
-                            actions: automation.action
-                        })
-                    });
-                } catch (error) {
-                    throw new Error(`Failed to parse automation: ${error.message}`);
-                }
-            } else {
-                throw new Error('AI did not return a valid response');
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            createBtn.innerHTML = originalText;
-            createBtn.disabled = false;
-            
-            if (data.success) {
-                alert(`Automation "${name}" created successfully!`);
-                automationName.value = '';
-                automationDescription.value = '';
-                loadAutomations();
-            } else {
-                alert(`Error creating automation: ${data.error || 'Unknown error'}`);
-            }
-        })
-        .catch(error => {
-            console.error('Error creating automation from description:', error);
-            createBtn.innerHTML = originalText;
-            createBtn.disabled = false;
-            alert(`Error creating automation: ${error.message}`);
-        });
-    }
+        if (key && value) {
+            saveMemory(key, value, isPreference);
+            $('#add-memory-modal').modal('hide');
+        } else {
+            showToast('Please enter both key and value.', 'warning');
+        }
+    });
+    
+    // Load initial data
+    initializeApp();
 });
+
+// Helper functions
+function addChatMessage(text, sender) {
+    const messagesContainer = $('#chat-messages');
+    const messageDiv = $('<div></div>').addClass('message').addClass(sender);
+    const contentDiv = $('<div></div>').addClass('message-content');
+    
+    // Add text to message
+    contentDiv.append($('<p></p>').text(text));
+    
+    // Add message to container
+    messageDiv.append(contentDiv);
+    messagesContainer.append(messageDiv);
+    
+    // Scroll to bottom
+    messagesContainer.scrollTop(messagesContainer[0].scrollHeight);
+    
+    // Clear any "thinking" indicators if this is a response
+    if (sender === 'ai' || sender === 'system') {
+        $('.message.thinking').remove();
+    }
+}
+
+function showThinking() {
+    // Add "thinking" indicator
+    const messagesContainer = $('#chat-messages');
+    const messageDiv = $('<div></div>').addClass('message ai thinking');
+    const contentDiv = $('<div></div>').addClass('message-content');
+    
+    contentDiv.append($('<p></p>').text('Thinking...'));
+    
+    messageDiv.append(contentDiv);
+    messagesContainer.append(messageDiv);
+    
+    // Scroll to bottom
+    messagesContainer.scrollTop(messagesContainer[0].scrollHeight);
+}
+
+function sendChatMessage(message) {
+    // Show thinking indicator
+    showThinking();
+    
+    // Send to server
+    $.ajax({
+        url: '/api/ask',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ prompt: message }),
+        success: function(response) {
+            // Remove thinking indicator and add response
+            $('.message.thinking').remove();
+            addChatMessage(response.response, 'ai');
+        },
+        error: function(xhr, status, error) {
+            // Remove thinking indicator and add error message
+            $('.message.thinking').remove();
+            addChatMessage('Sorry, I encountered an error while processing your request.', 'system');
+            console.error('Error in chat request:', error);
+            showToast('Failed to get response from server.', 'error');
+        }
+    });
+}
+
+function configureHomeAssistant(url, token) {
+    $.ajax({
+        url: '/api/ha/configure',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ url: url, token: token }),
+        success: function(response) {
+            showToast('Home Assistant connection configured successfully.', 'success');
+            updateConnectionStatus(true);
+        },
+        error: function(xhr, status, error) {
+            console.error('Failed to configure Home Assistant:', error);
+            showToast('Failed to configure Home Assistant connection. Please check your URL and token.', 'error');
+        }
+    });
+}
+
+function saveAISettings(apiKey, voiceEnabled) {
+    // Save settings to server
+    $.ajax({
+        url: '/api/settings/ai',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ 
+            api_key: apiKey,
+            voice_enabled: voiceEnabled
+        }),
+        success: function(response) {
+            showToast('AI settings saved successfully.', 'success');
+        },
+        error: function(xhr, status, error) {
+            console.error('Failed to save AI settings:', error);
+            showToast('Failed to save AI settings.', 'error');
+        }
+    });
+}
+
+function authorizeCalendar() {
+    // Redirect to authorization URL
+    $.ajax({
+        url: '/api/calendar/auth-url',
+        type: 'GET',
+        success: function(response) {
+            if (response.auth_url) {
+                // Open new window for authorization
+                window.open(response.auth_url, '_blank');
+                
+                // Show instructions
+                showToast('Please complete authorization in the opened window.', 'info');
+            } else {
+                showToast('Failed to get authorization URL.', 'error');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Failed to get calendar auth URL:', error);
+            showToast('Failed to start calendar authorization.', 'error');
+        }
+    });
+}
+
+function updateConnectionStatus(connected) {
+    const indicator = $('.indicator-dot');
+    
+    if (connected) {
+        indicator.addClass('connected');
+        indicator.siblings('span').text('Connected to Home Assistant');
+    } else {
+        indicator.removeClass('connected');
+        indicator.siblings('span').text('Not connected to Home Assistant');
+    }
+}
+
+function loadAutomationSuggestions() {
+    $.ajax({
+        url: '/api/automations/suggestions',
+        type: 'GET',
+        success: function(response) {
+            const container = $('#automation-suggestions');
+            container.empty();
+            
+            if (response.suggestions && response.suggestions.length > 0) {
+                response.suggestions.forEach(function(suggestion) {
+                    container.append(createAutomationCard(suggestion, true));
+                });
+            } else {
+                container.append('<p class="text-muted">No automation suggestions available yet. Nexus AI will suggest automations as it learns your patterns.</p>');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Failed to load automation suggestions:', error);
+            showToast('Failed to load automation suggestions.', 'error');
+        }
+    });
+}
+
+function loadActiveAutomations() {
+    $.ajax({
+        url: '/api/automations',
+        type: 'GET',
+        success: function(response) {
+            const container = $('#active-automations');
+            container.empty();
+            
+            if (response.automations && response.automations.length > 0) {
+                response.automations.forEach(function(automation) {
+                    container.append(createAutomationCard(automation, false));
+                });
+            } else {
+                container.append('<p class="text-muted">No active automations found.</p>');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Failed to load active automations:', error);
+            showToast('Failed to load active automations.', 'error');
+        }
+    });
+}
+
+function createAutomationCard(automation, isSuggestion) {
+    const card = $('<div class="automation-card"></div>');
+    
+    // Title
+    card.append(`<div class="title">${automation.name}</div>`);
+    
+    // Description
+    if (automation.description) {
+        card.append(`<div class="description">${automation.description}</div>`);
+    }
+    
+    // Confidence bar (for suggestions)
+    if (isSuggestion && automation.confidence !== undefined) {
+        const confidencePercent = Math.round(automation.confidence * 100);
+        card.append(`
+            <div class="confidence-bar">
+                <div class="confidence-level" style="width: ${confidencePercent}%"></div>
+            </div>
+            <div class="confidence-text small text-muted">Confidence: ${confidencePercent}%</div>
+        `);
+    }
+    
+    // Buttons
+    const buttonGroup = $('<div class="btn-group mt-2" role="group"></div>');
+    
+    if (isSuggestion) {
+        // Add "Create" button for suggestions
+        buttonGroup.append(`<button class="btn btn-sm btn-primary create-automation-btn" data-id="${automation.id}">Create</button>`);
+        buttonGroup.append(`<button class="btn btn-sm btn-outline-danger dismiss-suggestion-btn" data-id="${automation.id}">Dismiss</button>`);
+    } else {
+        // Add "Enable/Disable" toggle for existing automations
+        const toggleBtn = automation.is_enabled ? 
+            `<button class="btn btn-sm btn-outline-warning disable-automation-btn" data-id="${automation.id}">Disable</button>` :
+            `<button class="btn btn-sm btn-outline-success enable-automation-btn" data-id="${automation.id}">Enable</button>`;
+        
+        buttonGroup.append(toggleBtn);
+        buttonGroup.append(`<button class="btn btn-sm btn-outline-danger delete-automation-btn" data-id="${automation.id}">Delete</button>`);
+    }
+    
+    card.append(buttonGroup);
+    
+    // Add event handlers
+    setTimeout(function() {
+        // Create automation button
+        card.find('.create-automation-btn').on('click', function() {
+            const automationId = $(this).data('id');
+            createAutomation(automationId);
+        });
+        
+        // Dismiss suggestion button
+        card.find('.dismiss-suggestion-btn').on('click', function() {
+            const automationId = $(this).data('id');
+            dismissSuggestion(automationId);
+        });
+        
+        // Enable automation button
+        card.find('.enable-automation-btn').on('click', function() {
+            const automationId = $(this).data('id');
+            toggleAutomation(automationId, true);
+        });
+        
+        // Disable automation button
+        card.find('.disable-automation-btn').on('click', function() {
+            const automationId = $(this).data('id');
+            toggleAutomation(automationId, false);
+        });
+        
+        // Delete automation button
+        card.find('.delete-automation-btn').on('click', function() {
+            const automationId = $(this).data('id');
+            deleteAutomation(automationId);
+        });
+    }, 0);
+    
+    return card;
+}
+
+function createAutomation(suggestionId) {
+    $.ajax({
+        url: '/api/automations/create',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ suggestion_id: suggestionId }),
+        success: function(response) {
+            showToast('Automation created successfully.', 'success');
+            loadAutomationSuggestions();
+            loadActiveAutomations();
+        },
+        error: function(xhr, status, error) {
+            console.error('Failed to create automation:', error);
+            showToast('Failed to create automation.', 'error');
+        }
+    });
+}
+
+function dismissSuggestion(suggestionId) {
+    $.ajax({
+        url: '/api/automations/suggestions/dismiss',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ suggestion_id: suggestionId }),
+        success: function(response) {
+            showToast('Suggestion dismissed.', 'success');
+            loadAutomationSuggestions();
+        },
+        error: function(xhr, status, error) {
+            console.error('Failed to dismiss suggestion:', error);
+            showToast('Failed to dismiss suggestion.', 'error');
+        }
+    });
+}
+
+function toggleAutomation(automationId, enable) {
+    $.ajax({
+        url: '/api/automations/toggle',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ 
+            automation_id: automationId,
+            enable: enable
+        }),
+        success: function(response) {
+            const action = enable ? 'enabled' : 'disabled';
+            showToast(`Automation ${action} successfully.`, 'success');
+            loadActiveAutomations();
+        },
+        error: function(xhr, status, error) {
+            console.error('Failed to toggle automation:', error);
+            showToast('Failed to update automation.', 'error');
+        }
+    });
+}
+
+function deleteAutomation(automationId) {
+    if (confirm('Are you sure you want to delete this automation?')) {
+        $.ajax({
+            url: '/api/automations/delete',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ automation_id: automationId }),
+            success: function(response) {
+                showToast('Automation deleted successfully.', 'success');
+                loadActiveAutomations();
+            },
+            error: function(xhr, status, error) {
+                console.error('Failed to delete automation:', error);
+                showToast('Failed to delete automation.', 'error');
+            }
+        });
+    }
+}
+
+function loadMemoryItems() {
+    // Load preferences
+    $.ajax({
+        url: '/api/memory/preferences',
+        type: 'GET',
+        success: function(response) {
+            const container = $('#preferences-list');
+            container.empty();
+            
+            if (response.preferences && Object.keys(response.preferences).length > 0) {
+                for (const [key, value] of Object.entries(response.preferences)) {
+                    container.append(createMemoryItem(key, value, true));
+                }
+            } else {
+                container.append('<p class="text-muted">No preferences saved yet.</p>');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Failed to load preferences:', error);
+            showToast('Failed to load preferences.', 'error');
+        }
+    });
+    
+    // Load memory items
+    $.ajax({
+        url: '/api/memory',
+        type: 'GET',
+        success: function(response) {
+            const container = $('#memory-list');
+            container.empty();
+            
+            if (response.memories && response.memories.length > 0) {
+                response.memories.forEach(function(memory) {
+                    if (!memory.is_preference) {
+                        container.append(createMemoryItem(memory.key, memory.value, false));
+                    }
+                });
+            } else {
+                container.append('<p class="text-muted">No memory items saved yet.</p>');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Failed to load memory items:', error);
+            showToast('Failed to load memory items.', 'error');
+        }
+    });
+}
+
+function createMemoryItem(key, value, isPreference) {
+    const item = $('<div class="memory-item"></div>');
+    
+    item.append(`<div class="key">${key}</div>`);
+    item.append(`<div class="value">${value}</div>`);
+    
+    // Add delete button
+    const deleteBtn = $(`<button class="btn btn-sm btn-outline-danger mt-2 delete-memory-btn" data-key="${key}">Delete</button>`);
+    item.append(deleteBtn);
+    
+    // Add event handler
+    setTimeout(function() {
+        deleteBtn.on('click', function() {
+            const key = $(this).data('key');
+            deleteMemory(key);
+        });
+    }, 0);
+    
+    return item;
+}
+
+function saveMemory(key, value, isPreference) {
+    $.ajax({
+        url: '/api/memory',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ 
+            key: key,
+            value: value,
+            is_preference: isPreference
+        }),
+        success: function(response) {
+            showToast('Memory saved successfully.', 'success');
+            loadMemoryItems();
+            
+            // Clear form
+            $('#memory-key').val('');
+            $('#memory-value').val('');
+            $('#is-preference').prop('checked', false);
+        },
+        error: function(xhr, status, error) {
+            console.error('Failed to save memory:', error);
+            showToast('Failed to save memory.', 'error');
+        }
+    });
+}
+
+function deleteMemory(key) {
+    if (confirm('Are you sure you want to delete this memory item?')) {
+        $.ajax({
+            url: '/api/memory/delete',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ key: key }),
+            success: function(response) {
+                showToast('Memory deleted successfully.', 'success');
+                loadMemoryItems();
+            },
+            error: function(xhr, status, error) {
+                console.error('Failed to delete memory:', error);
+                showToast('Failed to delete memory.', 'error');
+            }
+        });
+    }
+}
+
+function showToast(message, type = 'info') {
+    // Create toast container if it doesn't exist
+    if ($('#toast-container').length === 0) {
+        $('body').append('<div id="toast-container" class="position-fixed bottom-0 end-0 p-3" style="z-index: 11"></div>');
+    }
+    
+    // Create toast
+    const toast = $(`
+        <div class="toast align-items-center text-white bg-${type}" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body">
+                    ${message}
+                </div>
+                <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+    `);
+    
+    // Add to container
+    $('#toast-container').append(toast);
+    
+    // Initialize and show
+    const toastInstance = new bootstrap.Toast(toast[0], {
+        autohide: true,
+        delay: 5000
+    });
+    toastInstance.show();
+}
+
+function startVoiceRecognition() {
+    // Check if browser supports speech recognition
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+        showToast('Voice recognition is not supported in your browser.', 'warning');
+        return;
+    }
+    
+    // Create recognition object
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    
+    // Configure
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+    
+    // Start recording
+    recognition.start();
+    
+    // Show recording indicator
+    $('#voice-input-btn').addClass('btn-danger').removeClass('btn-outline-secondary');
+    
+    // Handle results
+    recognition.onresult = function(event) {
+        const transcript = event.results[0][0].transcript;
+        $('#chat-input').val(transcript);
+    };
+    
+    // Handle end
+    recognition.onend = function() {
+        $('#voice-input-btn').removeClass('btn-danger').addClass('btn-outline-secondary');
+    };
+    
+    // Handle errors
+    recognition.onerror = function(event) {
+        console.error('Voice recognition error:', event.error);
+        showToast(`Voice recognition error: ${event.error}`, 'error');
+        $('#voice-input-btn').removeClass('btn-danger').addClass('btn-outline-secondary');
+    };
+}
+
+function loadSettings() {
+    // Load Home Assistant settings
+    $.ajax({
+        url: '/api/settings/ha',
+        type: 'GET',
+        success: function(response) {
+            if (response.url) {
+                $('#ha-url').val(response.url);
+            }
+            // Don't populate token for security reasons
+            
+            updateConnectionStatus(response.connected || false);
+        },
+        error: function(xhr, status, error) {
+            console.error('Failed to load HA settings:', error);
+        }
+    });
+    
+    // Load AI settings
+    $.ajax({
+        url: '/api/settings/ai',
+        type: 'GET',
+        success: function(response) {
+            // Don't populate API key for security reasons
+            $('#voice-enabled').prop('checked', response.voice_enabled || false);
+        },
+        error: function(xhr, status, error) {
+            console.error('Failed to load AI settings:', error);
+        }
+    });
+    
+    // Load calendar settings
+    $.ajax({
+        url: '/api/settings/calendar',
+        type: 'GET',
+        success: function(response) {
+            $('#calendar-enabled').prop('checked', response.enabled || false);
+            
+            // Update authorization button state
+            if (response.authorized) {
+                $('#calendar-auth-btn').text('Re-authorize Calendar').removeClass('btn-primary').addClass('btn-outline-primary');
+            } else {
+                $('#calendar-auth-btn').text('Authorize Calendar').addClass('btn-primary').removeClass('btn-outline-primary');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Failed to load calendar settings:', error);
+        }
+    });
+}
+
+// Initialize WebSocket connection
+function initWebSocket() {
+    // Check if browser supports WebSocket
+    if (!('WebSocket' in window)) {
+        console.error('WebSockets not supported');
+        return;
+    }
+    
+    // Create WebSocket
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = protocol + '//' + window.location.host + '/ws';
+    const socket = new WebSocket(wsUrl);
+    
+    socket.onopen = function() {
+        console.log('WebSocket connected');
+    };
+    
+    socket.onmessage = function(event) {
+        try {
+            const data = JSON.parse(event.data);
+            
+            // Handle different message types
+            if (data.type === 'new_suggestion') {
+                showToast('New automation suggestion available.', 'info');
+                loadAutomationSuggestions();
+            } else if (data.type === 'ha_state_change') {
+                // Handle state change
+                console.log('State change:', data.entity_id, data.new_state);
+            } else if (data.type === 'connection_status') {
+                updateConnectionStatus(data.connected);
+            }
+        } catch (e) {
+            console.error('Error parsing WebSocket message:', e);
+        }
+    };
+    
+    socket.onclose = function() {
+        console.log('WebSocket disconnected');
+        // Try to reconnect after a delay
+        setTimeout(initWebSocket, 5000);
+    };
+    
+    socket.onerror = function(error) {
+        console.error('WebSocket error:', error);
+    };
+}
+
+function initializeApp() {
+    // Load all data
+    loadSettings();
+    loadAutomationSuggestions();
+    loadActiveAutomations();
+    loadMemoryItems();
+    
+    // Initialize WebSocket
+    initWebSocket();
+}

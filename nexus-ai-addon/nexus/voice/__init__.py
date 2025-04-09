@@ -1,1 +1,3 @@
-# Package initialization for voice
+"""
+Voice processing modules for Nexus AI
+"""

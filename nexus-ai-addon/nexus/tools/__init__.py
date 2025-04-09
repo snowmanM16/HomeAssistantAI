@@ -1,1 +1,3 @@
-# Package initialization for tools
+"""
+Tools for Nexus AI
+"""

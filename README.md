@@ -13,9 +13,27 @@ Nexus AI is an intelligent AI assistant add-on for Home Assistant with memory, p
 
 ## Installation
 
-See [INSTALLATION.md](INSTALLATION.md) for detailed installation instructions.
+### Installation via Home Assistant Add-on Store
 
-For HACS users, see [HACS_INSTALLATION.md](HACS_INSTALLATION.md).
+1. In Home Assistant, navigate to **Settings** → **Add-ons** → **Add-on Store**
+2. Click the menu (three dots) in the top-right corner and select **Repositories**
+3. Add this repository URL: `https://github.com/yourusername/nexus-ai-addon`
+4. Find the "Nexus AI" add-on in the list and click install
+5. Wait for the installation to complete
+6. Configure your settings (see Configuration section)
+7. Start the add-on
+8. Click "OPEN WEB UI" to access the Nexus AI interface
+
+### Manual Installation
+
+If you prefer to install manually, you can clone this repository into your Home Assistant's `addons` directory:
+
+```bash
+cd /path/to/your/home_assistant/addons
+git clone https://github.com/yourusername/nexus-ai-addon
+```
+
+Then restart Home Assistant and proceed with the installation from the Add-on Store.
 
 ## Configuration
 
@@ -52,7 +70,7 @@ Contributions are welcome! Feel free to submit issues or pull requests.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## Acknowledgements
 

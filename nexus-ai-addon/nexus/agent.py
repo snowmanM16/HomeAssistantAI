@@ -1,205 +1,169 @@
+"""
+AI agent for Nexus
+"""
 import os
 import json
 import logging
-import datetime
+from typing import Dict, List, Any, Optional
 import asyncio
-import re
-from typing import Dict, Any, List, Optional, Tuple
-from .memory import MemoryManager
-from .openai_helper import ask_gpt, extract_actions
+import openai
 
-logger = logging.getLogger("nexus.agent")
+logger = logging.getLogger(__name__)
 
 class NexusAgent:
     """Core AI agent that processes queries and integrates with all components."""
     
-    def __init__(self, memory, ha_api, calendar=None, stt=None, tts=None):
+    def __init__(self, database, ha_api):
         """Initialize the AI agent with components."""
-        self.memory = memory
+        self.db = database
         self.ha_api = ha_api
-        self.calendar = calendar
-        self.stt = stt
-        self.tts = tts
+        self.api_key = os.environ.get("OPENAI_API_KEY", "")
         
-        # Get OpenAI API key from environment
-        self.openai_api_key = os.getenv("OPENAI_API_KEY", "")
-        if not self.openai_api_key:
-            logger.warning("OpenAI API key not set. AI functionality will be limited.")
+        # Initialize OpenAI client if API key is available
+        if self.api_key:
+            openai.api_key = self.api_key
+        
+        # System prompt for the AI
+        self.system_prompt = """
+        You are Nexus AI, an intelligent assistant for Home Assistant. 
+        You have access to the user's smart home devices and can control them, 
+        check their status, and suggest automations based on patterns.
+        
+        When responding to user queries:
+        1. Be helpful, concise, and friendly
+        2. If the user asks about the status of a device, check the most recent state
+        3. If the user wants to control a device, execute the command using the Home Assistant API
+        4. When appropriate, suggest automations that might be helpful based on the user's patterns
+        5. Remember the user's preferences and past interactions
+        
+        You can use these special commands in your responses if needed:
+        - [EXECUTE_SERVICE domain.service {data}] - Execute a Home Assistant service
+        - [SAVE_MEMORY key:value] - Remember information for future use
+        
+        Respond in a conversational manner as if you're a helpful home assistant.
+        """
     
     async def process_query(self, query: str, context: Optional[Dict[str, Any]] = None) -> str:
         """Process a user query with context and memory."""
-        # Skip AI processing if API key is not set
-        if not self.openai_api_key:
-            return "OpenAI API key not configured. Please set it in the add-on configuration."
+        logger.info(f"Processing query: {query}")
         
-        # Get current time for context
-        current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        if not self.api_key:
+            return "Sorry, I'm not fully configured yet. Please set your OpenAI API key in the settings."
         
-        # Retrieve relevant memories
-        memories = self.memory.search(query)
-        memory_context = "\n".join([f"- {item['value']}" for item in memories[:5]])
+        # Get relevant Home Assistant states for context
+        ha_states = await self.ha_api.get_states()
         
-        # Get calendar events if available
-        calendar_events = []
-        if self.calendar:
-            try:
-                calendar_events = await self.calendar.get_today_events()
-            except Exception as e:
-                logger.error(f"Failed to get calendar events: {e}")
+        # Process HA states to extract relevant information for this query
+        ha_context = ""
+        if ha_states.get("success", False):
+            ha_context = self._extract_relevant_ha_states(ha_states["result"], query)
         
-        calendar_context = "\n".join([f"- {event['time']}: {event['event']}" for event in calendar_events[:5]])
+        # Get relevant memories
+        memories = []
+        # TODO: Implement memory retrieval
         
-        # Get Home Assistant state
-        ha_state = {}
-        try:
-            ha_state = await self.ha_api.get_states()
-        except Exception as e:
-            logger.error(f"Failed to get Home Assistant state: {e}")
-        
-        # Prepare the system message
-        system_message = f"""
-        You are Nexus AI, an intelligent assistant integrated with Home Assistant, a smart home platform.
-        Current time: {current_time}
-        
-        Your capabilities:
-        1. Answer questions and provide information
-        2. Control smart home devices via Home Assistant
-        3. Access calendar information
-        4. Remember information shared with you
-        
-        When a user asks you to control devices or perform actions in their home, you should:
-        - Identify the domain (light, switch, climate, etc.) and service (turn_on, turn_off, etc.)
-        - If specific entity IDs are mentioned, use them
-        - If details are unclear, ask for clarification
-        
-        When responding:
-        - Be helpful, friendly, and concise
-        - Acknowledge when you're taking actions
-        - If you need to control a device, indicate which command you would use
-        - Don't fabricate information or capabilities
-        
-        Remember these user preferences and information from previous conversations:
-        {memory_context if memory_context else "No specific preferences recorded yet."}
-        
-        Today's calendar events:
-        {calendar_context if calendar_context else "No calendar events found for today."}
-        """
-        
-        # Use the most relevant Home Assistant states in the context
-        ha_context = self._extract_relevant_ha_states(ha_state, query)
-        
-        # Add additional context if provided
-        additional_context = ""
-        if context:
-            additional_context = f"\nAdditional context: {json.dumps(context)}"
-            
-        # Build messages for OpenAI
+        # Build conversation context
         messages = [
-            {"role": "system", "content": system_message},
-            {"role": "system", "content": f"Home Assistant state: {ha_context}{additional_context}"},
-            {"role": "user", "content": query}
+            {"role": "system", "content": self.system_prompt},
+            {"role": "system", "content": f"Current Home Assistant state:\n{ha_context}"}
         ]
         
-        # Log the request for debugging
-        logger.debug(f"Sending request to OpenAI with messages: {messages}")
+        # Add memories as system messages
+        for memory in memories:
+            messages.append({"role": "system", "content": f"Memory: {memory['key']} = {memory['value']}"})
+        
+        # Add user query
+        messages.append({"role": "user", "content": query})
         
         try:
-            # Use our OpenAI helper to get a response
-            ai_response = await ask_gpt(
-                prompt=query,
-                system_prompt=system_message,
-                context=f"Home Assistant state: {ha_context}{additional_context}"
+            # Call OpenAI API for response
+            response = openai.chat.completions.create(
+                model="gpt-4o",  # the newest OpenAI model is "gpt-4o" which was released May 13, 2024
+                messages=messages,
+                max_tokens=800,
+                temperature=0.7
             )
             
-            # Save the interaction to memory
-            current_date = datetime.datetime.now().strftime("%Y-%m-%d")
-            self.memory.save_memory(
-                f"interaction_{current_date}_{hash(query) % 10000}", 
-                f"Q: {query}\nA: {ai_response}"
-            )
+            response_text = response.choices[0].message.content
             
-            # Check for action commands in the response
-            await self._process_actions(ai_response)
+            # Process any actions in the response
+            await self._process_actions(response_text)
             
-            return ai_response
+            # Remove action commands from the final response
+            final_response = self._clean_response(response_text)
             
+            return final_response
+        
         except Exception as e:
-            logger.error(f"Error processing query: {e}")
-            return f"I encountered an error processing your request: {str(e)}"
+            logger.error(f"Error calling OpenAI: {e}")
+            return f"I apologize, but I encountered an error: {str(e)}"
     
-    def _extract_relevant_ha_states(self, ha_state: Dict[str, Any], query: str) -> str:
+    def _extract_relevant_ha_states(self, ha_state: List[Dict[str, Any]], query: str) -> str:
         """Extract relevant Home Assistant states based on the query."""
-        # This is a simple implementation that could be improved with better filtering
-        relevant_states = {}
+        # For now, just return a summary of states
+        # In a full implementation, this would analyze the query and filter for relevant states
         
-        # Define keywords to match with entities
-        keywords = {
-            "light": ["light", "lamp", "lights", "brightness", "dim", "bright", "color"],
-            "switch": ["switch", "plug", "outlet", "turn on", "turn off", "toggle"],
-            "climate": ["temperature", "climate", "heat", "cool", "thermostat", "ac", "heating"],
-            "sensor": ["sensor", "temperature", "humidity", "motion", "door", "window", "battery"],
-            "weather": ["weather", "forecast", "rain", "snow", "temperature", "wind"],
-            "media_player": ["tv", "music", "play", "pause", "volume", "media", "song", "movie"]
-        }
+        domains = set()
+        entity_summary = []
         
-        # Extract entities that might be relevant to the query
-        query_lower = query.lower()
-        for entity_id, state in ha_state.items():
-            entity_type = entity_id.split('.')[0]
+        for entity in ha_state:
+            entity_id = entity.get("entity_id", "")
+            if "." in entity_id:
+                domain = entity_id.split(".")[0]
+                domains.add(domain)
             
-            # Check if entity type is in our keywords list
-            if entity_type in keywords:
-                # Check if any keyword for this entity type appears in the query
-                if any(keyword in query_lower for keyword in keywords[entity_type]):
-                    relevant_states[entity_id] = state
-            
-            # Also include entities explicitly mentioned by name
-            entity_name = state.get('attributes', {}).get('friendly_name', '').lower()
-            if entity_name and entity_name in query_lower:
-                relevant_states[entity_id] = state
+            # Only include certain domains in the summary
+            important_domains = {"light", "switch", "binary_sensor", "sensor", "climate", "person", "media_player"}
+            if domain in important_domains:
+                name = entity.get("attributes", {}).get("friendly_name", entity_id)
+                state = entity.get("state", "unknown")
+                entity_summary.append(f"{name}: {state}")
         
-        # Limit the number of states to avoid too much context
-        relevant_states_list = list(relevant_states.items())[:15]
+        # Limit the number of entities to avoid token limits
+        if len(entity_summary) > 20:
+            entity_summary = entity_summary[:20]
+            entity_summary.append(f"... and {len(ha_state) - 20} more entities")
         
-        # Convert to a readable format
-        formatted_states = []
-        for entity_id, state in relevant_states_list:
-            friendly_name = state.get('attributes', {}).get('friendly_name', entity_id)
-            state_str = state.get('state', 'unknown')
-            formatted_states.append(f"{friendly_name} ({entity_id}): {state_str}")
-        
-        return "\n".join(formatted_states)
+        return f"Available domains: {', '.join(sorted(domains))}\n\nEntity states:\n" + "\n".join(entity_summary)
     
     async def _process_actions(self, response: str) -> None:
         """Process any actions indicated in the AI response."""
-        try:
-            # First check for actions in the old format pattern: [ACTION:domain.service:{"entity_id":"light.living_room"}]
-            action_pattern = r'\[ACTION:([\w\.]+):({.*?})\]'
-            matches = re.findall(action_pattern, response)
-            
-            for match in matches:
-                try:
-                    service_call, data_str = match
-                    domain, service = service_call.split('.')
-                    data = json.loads(data_str)
-                    
-                    logger.info(f"Executing action: {domain}.{service} with data: {data}")
-                    await self.ha_api.call_service(domain, service, data)
-                except Exception as e:
-                    logger.error(f"Failed to execute action from response: {e}")
-            
-            # Then use the new structured extraction method
-            actions = await extract_actions(response)
-            for action in actions:
-                try:
-                    domain = action.get('domain')
-                    service = action.get('service')
-                    data = action.get('data', {})
-                    
-                    if domain and service:
-                        logger.info(f"Executing extracted action: {domain}.{service} with data: {data}")
+        # Look for EXECUTE_SERVICE commands
+        if "[EXECUTE_SERVICE" in response:
+            for line in response.split("\n"):
+                if "[EXECUTE_SERVICE" in line:
+                    try:
+                        # Extract command parts
+                        command = line.split("[EXECUTE_SERVICE ")[1].split("]")[0]
+                        domain_service, data_str = command.split(" ", 1)
+                        domain, service = domain_service.split(".")
+                        data = json.loads(data_str)
+                        
+                        # Execute the service
+                        logger.info(f"Executing service {domain}.{service} with data {data}")
                         await self.ha_api.call_service(domain, service, data)
-                except Exception as e:
-                    logger.error(f"Failed to execute extracted action: {e}")
-        except Exception as e:
-            logger.error(f"Error in action processing: {e}")
+                    except Exception as e:
+                        logger.error(f"Error executing service: {e}")
+        
+        # Look for SAVE_MEMORY commands
+        if "[SAVE_MEMORY" in response:
+            for line in response.split("\n"):
+                if "[SAVE_MEMORY" in line:
+                    try:
+                        # Extract memory parts
+                        memory = line.split("[SAVE_MEMORY ")[1].split("]")[0]
+                        key, value = memory.split(":", 1)
+                        
+                        # Save to memory
+                        logger.info(f"Saving memory {key}:{value}")
+                        self.db.save_memory(key.strip(), value.strip())
+                    except Exception as e:
+                        logger.error(f"Error saving memory: {e}")
+    
+    def _clean_response(self, response: str) -> str:
+        """Remove action commands from the response."""
+        lines = []
+        for line in response.split("\n"):
+            if not any(command in line for command in ["[EXECUTE_SERVICE", "[SAVE_MEMORY"]):
+                lines.append(line)
+        return "\n".join(lines)
