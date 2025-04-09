@@ -1,0 +1,238 @@
+🧠 Nexus AI – Full Add-on Build Specification for Replit AI
+🧾 Use this entire document in Replit AI or Ghostwriter to generate the full Home Assistant add-on that runs locally and integrates AI, memory, and automation control.
+
+✅ Overview
+You're building a Home Assistant Add-on called Nexus AI.
+
+It must:
+
+Run in a Docker container using Home Assistant Supervisor add-on format
+
+Communicate with Home Assistant API via REST and WebSocket
+
+Include an AI engine (OpenAI GPT-4o or local model)
+
+Have memory via SQLite + ChromaDB
+
+Integrate with Google Calendar
+
+Expose a FastAPI server with endpoints like /ask, /action, /calendar, /memory
+
+Provide an optional iframe panel for user interaction inside Home Assistant
+
+Support optional voice input/output using Whisper and Piper
+
+🧱 Project Folder Structure
+bash
+Copy
+Edit
+nexus-ai-addon/
+├── config.json              # Home Assistant add-on metadata
+├── Dockerfile               # Defines container runtime
+├── run.sh                   # Entrypoint
+├── requirements.txt         # Python dependencies
+├── nexus/                   # Application logic lives here
+│   ├── main.py              # FastAPI server
+│   ├── agent.py             # Core AI logic
+│   ├── ha_api.py            # Talks to Home Assistant API
+│   ├── calendar.py          # Google Calendar logic
+│   ├── memory.py            # Knowledge base (SQLite + Chroma)
+│   ├── tools/               # Optional tools to extend AI
+│   ├── voice/
+│   │   ├── stt.py           # Whisper
+│   │   └── tts.py           # Piper
+├── data/                    # Stores memory, logs, embeddings
+│   ├── embeddings.db
+│   └── user.json
+├── hacs.json                # Optional HACS support
+└── README.md
+🔧 config.json (for Home Assistant)
+json
+Copy
+Edit
+{
+  "name": "Nexus AI",
+  "version": "0.1.0",
+  "slug": "nexus_ai",
+  "description": "Autonomous AI assistant with memory and smart control for Home Assistant",
+  "startup": "application",
+  "boot": "auto",
+  "arch": ["amd64", "armv7", "aarch64"],
+  "host_network": true,
+  "homeassistant_api": true,
+  "options": {},
+  "schema": {},
+  "ports": {
+    "5000/tcp": 5000
+  },
+  "map": ["config:rw", "ssl", "media", "share"],
+  "ingress": true,
+  "panel_icon": "mdi:robot",
+  "panel_title": "Nexus AI",
+  "ingress_port": 5000
+}
+🐳 Dockerfile
+dockerfile
+Copy
+Edit
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements.txt requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY nexus/ ./nexus/
+COPY run.sh ./run.sh
+RUN chmod +x run.sh
+
+CMD ["./run.sh"]
+📜 run.sh
+bash
+Copy
+Edit
+#!/bin/bash
+echo "Starting Nexus AI..."
+python3 nexus/main.py
+📦 requirements.txt
+txt
+Copy
+Edit
+fastapi
+uvicorn
+requests
+openai
+chromadb
+sqlite-utils
+aiohttp
+python-dotenv
+google-api-python-client
+google-auth
+google-auth-oauthlib
+pydantic
+websockets
+🧠 FastAPI Server (main.py)
+python
+Copy
+Edit
+from fastapi import FastAPI, Request
+from nexus.agent import run_agent
+from nexus.memory import recall, save_memory
+from nexus.calendar import get_today_events
+from nexus.ha_api import call_service
+
+app = FastAPI()
+
+@app.get("/")
+def read_root():
+    return {"message": "Nexus AI is running"}
+
+@app.post("/ask")
+async def ask(request: Request):
+    body = await request.json()
+    response = await run_agent(body["prompt"])
+    return {"response": response}
+
+@app.get("/calendar")
+async def calendar():
+    events = get_today_events()
+    return {"events": events}
+
+@app.post("/action")
+async def action(request: Request):
+    data = await request.json()
+    result = call_service(data["domain"], data["service"], data.get("data", {}))
+    return {"result": result}
+
+@app.post("/memory")
+async def memory(request: Request):
+    data = await request.json()
+    save_memory(data["key"], data["value"])
+    return {"status": "saved"}
+
+@app.get("/memory/{key}")
+def memory_get(key: str):
+    return {"value": recall(key)}
+🧠 agent.py (AI Logic)
+python
+Copy
+Edit
+import openai
+
+def run_agent(prompt):
+    openai.api_key = "YOUR_API_KEY"
+    completion = openai.ChatCompletion.create(
+        model="gpt-4o",
+        messages=[{"role": "user", "content": prompt}]
+    )
+    return completion.choices[0].message["content"]
+📆 calendar.py (Google Calendar)
+python
+Copy
+Edit
+def get_today_events():
+    # Stub - Connect to Google Calendar API
+    return [
+        {"time": "07:00", "event": "Morning Workout"},
+        {"time": "10:00", "event": "Team Meeting"},
+    ]
+📡 ha_api.py (Home Assistant API Client)
+python
+Copy
+Edit
+import requests
+import os
+
+HA_TOKEN = os.getenv("SUPERVISOR_TOKEN")
+HA_URL = "http://supervisor/core/api"
+
+def call_service(domain, service, data):
+    url = f"{HA_URL}/services/{domain}/{service}"
+    headers = {
+        "Authorization": f"Bearer {HA_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    r = requests.post(url, json=data, headers=headers)
+    return r.json()
+💾 memory.py (SQLite + Embeddings)
+python
+Copy
+Edit
+import sqlite3
+import os
+
+DB_PATH = "/data/memory.db"
+
+def save_memory(key, value):
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("CREATE TABLE IF NOT EXISTS memory (key TEXT PRIMARY KEY, value TEXT)")
+    cur.execute("REPLACE INTO memory (key, value) VALUES (?, ?)", (key, value))
+    conn.commit()
+    conn.close()
+
+def recall(key):
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("SELECT value FROM memory WHERE key=?", (key,))
+    row = cur.fetchone()
+    conn.close()
+    return row[0] if row else None
+🔉 voice/stt.py & tts.py (optional)
+You can include:
+
+stt.py – runs Whisper transcription from microphone or audio files
+
+tts.py – uses Piper to synthesize voice responses (can play through media player or TTS entity)
+
+🧠 Nexus Behaviors & Ideas
+Auto-trigger morning routines based on your wake-up time
+
+Suggest actions based on weather, solar battery level, calendar events
+
+Automatically turn on heater, lights, or camera based on your schedule
+
+Act as a note-taker and reminder system
+
+Long-term learning: “You mute alerts every Wednesday night → should I automate this?”
+
